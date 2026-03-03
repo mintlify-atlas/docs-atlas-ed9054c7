@@ -1,0 +1,123 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "m87",
+  "projectDescription": "Command line and device runtime for connecting to, debugging, and deploying software to distributed hardware fleets over a single outbound connection.",
+  "theme": "aspen",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/security",
+              "concepts/authentication"
+            ]
+          },
+          {
+            "group": "CLI Commands",
+            "pages": [
+              "commands/device-access",
+              "commands/file-transfer",
+              "commands/port-forwarding",
+              "commands/docker-integration",
+              "commands/deployments",
+              "commands/runtime-management"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/ssh-setup",
+              "guides/mcp-integration",
+              "guides/self-hosting"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/troubleshooting",
+              "advanced/updating",
+              "advanced/building-from-source"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Command Reference",
+            "pages": [
+              "api/cli-reference",
+              "api/environment-variables"
+            ]
+          },
+          {
+            "group": "MCP Server",
+            "pages": [
+              "api/mcp-overview",
+              "api/mcp-tools"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Outbound-only access without VPNs or firewall rules",
+    "Interactive shell and remote command execution",
+    "Port and socket forwarding",
+    "File transfer and sync (rsync-style)",
+    "Docker container management and deployment",
+    "Async deployment for offline devices",
+    "SSH host resolving",
+    "Serial port forwarding",
+    "Built-in MCP server for AI agent integration",
+    "Systemd service management",
+    "Self-hosting support"
+  ],
+  "publicApiSurface": [
+    "m87 login",
+    "m87 logout",
+    "m87 devices list",
+    "m87 devices approve",
+    "m87 <device> shell",
+    "m87 <device> exec",
+    "m87 <device> forward",
+    "m87 <device> docker",
+    "m87 <device> logs",
+    "m87 <device> metrics",
+    "m87 <device> status",
+    "m87 <device> serial",
+    "m87 <device> audit",
+    "m87 <device> deploy",
+    "m87 <device> undeploy",
+    "m87 <device> deployment",
+    "m87 cp",
+    "m87 sync",
+    "m87 ssh enable",
+    "m87 runtime run",
+    "m87 runtime start",
+    "m87 runtime stop",
+    "m87 runtime restart",
+    "m87 runtime status",
+    "m87 runtime enable",
+    "m87 runtime disable",
+    "m87 update",
+    "m87 mcp"
+  ]
+}
