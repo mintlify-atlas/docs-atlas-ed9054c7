@@ -1,0 +1,183 @@
+---
+title: Installation
+description: Install m87 on your developer machine and edge devices
+---
+
+The m87 CLI can be installed on both your developer machine (for managing devices) and on edge devices (to run the runtime).
+
+## System requirements
+
+<CardGroup cols={2}>
+  <Card title="Linux" icon="linux">
+    **Full support** (amd64, arm64)
+    
+    CLI + runtime functionality
+  </Card>
+  <Card title="macOS" icon="apple">
+    **CLI only** (amd64, arm64)
+    
+    For managing remote devices
+  </Card>
+</CardGroup>
+
+<Note>
+  **Rust requirement for building from source:** Rust 1.85 or later
+</Note>
+
+## Recommended installation
+
+The fastest way to get started is using the one-line installer:
+
+```bash
+curl -fsSL https://get.make87.com | sh
+```
+
+This installs the latest version to `$HOME/.local/bin`. Make sure this directory is in your `$PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+<Tip>
+  Add the export command to your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) to make it permanent.
+</Tip>
+
+## Alternative installation methods
+
+<AccordionGroup>
+  <Accordion title="Download from releases">
+    Download a pre-built binary from the [GitHub releases page](https://github.com/make87/m87/releases).
+
+    1. Download the appropriate binary for your platform
+    2. Extract the archive
+    3. Move the binary to a location in your `$PATH`:
+
+    ```bash
+    # Example for Linux
+    sudo mv m87 /usr/local/bin/
+    sudo chmod +x /usr/local/bin/m87
+    ```
+  </Accordion>
+
+  <Accordion title="Build from source">
+    Build the binary yourself from the source code:
+
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/make87/m87.git
+        cd m87
+        ```
+      </Step>
+
+      <Step title="Build the release binary">
+        ```bash
+        cargo build --release
+        ```
+
+        The binary will be created at `target/release/m87`.
+      </Step>
+
+      <Step title="Install to your PATH">
+        ```bash
+        cp target/release/m87 $HOME/.local/bin/
+        # Or system-wide:
+        sudo cp target/release/m87 /usr/local/bin/
+        ```
+      </Step>
+    </Steps>
+
+    <Note>
+      Build configuration is auto-detected by OS:
+      - **Linux:** Full functionality (CLI + runtime)
+      - **macOS:** CLI only
+    </Note>
+  </Accordion>
+
+  <Accordion title="Run via Docker">
+    Run m87 from a container without installing anything locally. Useful for CI pipelines or keeping your system clean.
+
+    <Steps>
+      <Step title="Build the Docker image">
+        ```bash
+        git clone https://github.com/make87/m87.git
+        cd m87
+        docker build -f m87-client/Dockerfile -t m87 .
+        ```
+      </Step>
+
+      <Step title="Run m87 commands">
+        Configuration persists in `~/.config/m87`:
+
+        ```bash
+        docker run -it --rm \
+          --user "$(id -u):$(id -g)" \
+          -v "$HOME/.config/m87:/.config/m87" \
+          -e HOME=/ \
+          m87 login
+        ```
+      </Step>
+
+      <Step title="Optional: Create an alias">
+        For convenience, add an alias to your shell configuration:
+
+        ```bash
+        alias m87='docker run -it --rm --user "$(id -u):$(id -g)" -v "$HOME/.config/m87:/.config/m87" -e HOME=/ m87'
+        ```
+
+        Now you can use `m87` commands directly:
+
+        ```bash
+        m87 devices list
+        m87 my-device shell
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+</AccordionGroup>
+
+## Verify installation
+
+Confirm that m87 is installed correctly:
+
+```bash
+m87 version
+```
+
+You should see output showing the current version:
+
+```
+m87 [version]
+```
+
+## Updating m87
+
+To update to the latest version:
+
+```bash
+m87 update
+```
+
+This downloads and installs the latest m87 binary.
+
+<Warning>
+  If you're running the m87 runtime on a device, you'll need to restart it after updating:
+
+  ```bash
+  m87 runtime restart
+  ```
+</Warning>
+
+### Update a remote device
+
+To update m87 on a remote device:
+
+```bash
+m87 my-device exec -it -- 'm87 update && m87 runtime restart'
+```
+
+## Next steps
+
+<Card title="Quick start" icon="rocket" href="/quickstart">
+  Connect your first device in under 5 minutes
+</Card>

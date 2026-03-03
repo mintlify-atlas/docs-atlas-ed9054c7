@@ -1,0 +1,844 @@
+---
+title: MCP Tools Reference
+description: Complete reference for all MCP tools available in the m87 server
+icon: wrench
+---
+
+This page documents all tools exposed by the m87 MCP server. Tools are organized by category.
+
+<Note>
+  Tools marked with **[Batch]** support batch operations - pass `devices` array instead of `device` to operate on multiple devices at once.
+</Note>
+
+## Device Management
+
+### devices_list
+
+List all accessible devices.
+
+**Parameters:** None
+
+**Returns:**
+```json
+[
+  {
+    "id": "dev-abc123",
+    "name": "my-device",
+    "status": "online",
+    "owner": "user@example.com"
+  }
+]
+```
+
+### devices_approve
+
+Approve a pending device registration.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device ID to approve
+</ParamField>
+
+**Returns:**
+```json
+{"status": "approved"}
+```
+
+### devices_reject
+
+Reject a pending device registration.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device ID to reject
+</ParamField>
+
+**Returns:**
+```json
+{"status": "rejected"}
+```
+
+### device_status **[Batch]**
+
+Get device status and health. Supports batch operations.
+
+**Parameters:**
+<ParamField path="device" type="string">
+  Single device name or ID (mutually exclusive with `devices`)
+</ParamField>
+
+<ParamField path="devices" type="string[]">
+  Multiple device names/IDs for batch execution (mutually exclusive with `device`)
+</ParamField>
+
+**Returns (single):**
+```json
+{
+  "status": "online",
+  "health": "healthy",
+  "uptime": 86400,
+  "last_seen": "2026-03-03T10:00:00Z"
+}
+```
+
+**Returns (batch):**
+```json
+{
+  "results": [
+    {"device": "device-1", "status": "online", ...},
+    {"device": "device-2", "status": "offline", ...}
+  ]
+}
+```
+
+### device_audit_logs **[Batch]**
+
+Get audit logs for a device. Supports batch operations.
+
+**Parameters:**
+<ParamField path="device" type="string">
+  Single device name or ID (mutually exclusive with `devices`)
+</ParamField>
+
+<ParamField path="devices" type="string[]">
+  Multiple device names/IDs (mutually exclusive with `device`)
+</ParamField>
+
+<ParamField path="since" type="string">
+  Start time in ISO 8601 format (e.g., "2026-03-01T00:00:00Z")
+</ParamField>
+
+<ParamField path="until" type="string">
+  End time in ISO 8601 format
+</ParamField>
+
+<ParamField path="max" type="number" default="100">
+  Maximum number of logs to return
+</ParamField>
+
+**Returns (single):**
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2026-03-03T10:00:00Z",
+      "user": "user@example.com",
+      "action": "shell",
+      "details": "..."
+    }
+  ]
+}
+```
+
+**Returns (batch):**
+```json
+{
+  "results": [
+    {"device": "device-1", "logs": [...]},
+    {"device": "device-2", "logs": [...]}
+  ]
+}
+```
+
+## Device Access Control
+
+### device_access_list
+
+List users with access to a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+**Returns:**
+```json
+[
+  {
+    "email": "user@example.com",
+    "role": "editor"
+  },
+  {
+    "org_id": "my-org",
+    "role": "admin"
+  }
+]
+```
+
+### device_access_add
+
+Grant access to a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="email_or_org_id" type="string" required>
+  Email address or organization ID
+</ParamField>
+
+<ParamField path="role" type="string" required>
+  Role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+**Returns:**
+```json
+{"status": "added"}
+```
+
+### device_access_remove
+
+Revoke access to a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="email_or_org_id" type="string" required>
+  Email address or organization ID
+</ParamField>
+
+**Returns:**
+```json
+{"status": "removed"}
+```
+
+## File Operations
+
+### device_ls
+
+List files in a device directory.
+
+**Parameters:**
+<ParamField path="path" type="string" required>
+  Remote path in format `<device>:<path>`
+</ParamField>
+
+**Returns:**
+```json
+[
+  {"name": "file.txt", "is_dir": false},
+  {"name": "logs", "is_dir": true}
+]
+```
+
+### device_cp
+
+Copy files between local and remote device.
+
+**Parameters:**
+<ParamField path="source" type="string" required>
+  Source path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+<ParamField path="dest" type="string" required>
+  Destination path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+**Returns:**
+```json
+{"status": "copied"}
+```
+
+### device_sync
+
+Sync files between local and remote device.
+
+**Parameters:**
+<ParamField path="source" type="string" required>
+  Source path
+</ParamField>
+
+<ParamField path="dest" type="string" required>
+  Destination path
+</ParamField>
+
+<ParamField path="delete" type="boolean" default="false">
+  Delete files not in source
+</ParamField>
+
+<ParamField path="dry_run" type="boolean" default="false">
+  Show what would be done without making changes
+</ParamField>
+
+<ParamField path="exclude" type="string[]">
+  File patterns to exclude
+</ParamField>
+
+**Returns:**
+```json
+{"status": "synced"}
+```
+
+## Remote Execution
+
+### device_exec **[Batch]**
+
+Execute a command on a device and return output. Non-zero exit codes are returned as data, not errors. Supports batch operations.
+
+**Parameters:**
+<ParamField path="device" type="string">
+  Single device name or ID (mutually exclusive with `devices`)
+</ParamField>
+
+<ParamField path="devices" type="string[]">
+  Multiple device names/IDs (mutually exclusive with `device`)
+</ParamField>
+
+<ParamField path="command" type="string[]" required>
+  Command and arguments to execute
+</ParamField>
+
+<ParamField path="timeout_secs" type="number" default="30">
+  Command timeout in seconds
+</ParamField>
+
+**Returns (single):**
+```json
+{
+  "output": "command output here",
+  "exit_code": 0
+}
+```
+
+**Returns (batch):**
+```json
+{
+  "results": [
+    {"device": "device-1", "output": "...", "exit_code": 0},
+    {"device": "device-2", "error": "timeout"}
+  ]
+}
+```
+
+### docker_exec
+
+Run a docker command on a device and capture output. The docker socket is forwarded via QUIC automatically. For long-running containers use the `-d` flag.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="args" type="string[]" required>
+  Docker CLI arguments (e.g., `["ps", "-a"]` or `["run", "-d", "nginx"]`)
+</ParamField>
+
+<ParamField path="timeout_secs" type="number" default="60">
+  Timeout in seconds (use higher values for builds/pulls)
+</ParamField>
+
+**Returns:**
+```json
+{
+  "stdout": "CONTAINER ID   IMAGE   ...",
+  "stderr": "",
+  "exit_code": 0
+}
+```
+
+## Port Forwarding
+
+### forward_start
+
+Start port/socket forwarding to a device. Returns a session ID for lifecycle management. Forwarding runs in the background until stopped.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="specs" type="string[]" required>
+  Forward specifications (e.g., `["8080:80", "/tmp/sock:/var/run/docker.sock"]`)
+</ParamField>
+
+**Returns:**
+```json
+{
+  "session_id": "1",
+  "device": "my-device",
+  "targets": ["TcpPort(8080->80)"],
+  "status": "started"
+}
+```
+
+### forward_stop
+
+Stop a running forward session by session ID.
+
+**Parameters:**
+<ParamField path="session_id" type="string" required>
+  Session ID returned by `forward_start`
+</ParamField>
+
+**Returns:**
+```json
+{
+  "session_id": "1",
+  "status": "stopped"
+}
+```
+
+### forward_list
+
+List all active forward sessions.
+
+**Parameters:** None
+
+**Returns:**
+```json
+[
+  {
+    "session_id": "1",
+    "device": "my-device",
+    "specs": ["8080:80"],
+    "targets": ["TcpPort(8080->80)"]
+  }
+]
+```
+
+## Deployment Operations
+
+### device_deploy
+
+Add a deployment spec to a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="file" type="string" required>
+  Path to deployment file (docker-compose.yml or run spec YAML)
+</ParamField>
+
+<ParamField path="spec_type" type="string" default="auto">
+  Spec type: `auto`, `compose`, `runspec`, or `deployment`
+</ParamField>
+
+<ParamField path="name" type="string">
+  Optional display name for the run spec
+</ParamField>
+
+<ParamField path="deployment_id" type="string">
+  Target deployment ID (uses active if omitted)
+</ParamField>
+
+**Returns:**
+```json
+{"status": "deployed"}
+```
+
+### device_undeploy
+
+Remove a deployment spec from a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="job_id" type="string" required>
+  Job ID to remove
+</ParamField>
+
+<ParamField path="deployment_id" type="string">
+  Target deployment ID (uses active if omitted)
+</ParamField>
+
+**Returns:**
+```json
+{"status": "undeployed"}
+```
+
+### device_deployment_list **[Batch]**
+
+List all deployments for a device. Supports batch operations.
+
+**Parameters:**
+<ParamField path="device" type="string">
+  Single device name or ID (mutually exclusive with `devices`)
+</ParamField>
+
+<ParamField path="devices" type="string[]">
+  Multiple device names/IDs (mutually exclusive with `device`)
+</ParamField>
+
+**Returns (single):**
+```json
+{
+  "deployments": [
+    {
+      "id": "dep-123",
+      "active": true,
+      "jobs": [...]
+    }
+  ]
+}
+```
+
+**Returns (batch):**
+```json
+{
+  "results": [
+    {"device": "device-1", "deployments": [...]},
+    {"device": "device-2", "deployments": [...]}
+  ]
+}
+```
+
+### device_deployment_new
+
+Create a new deployment for a device.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="active" type="boolean" default="false">
+  Make this deployment active immediately
+</ParamField>
+
+**Returns:**
+```json
+{
+  "id": "dep-456",
+  "active": false,
+  "jobs": []
+}
+```
+
+### device_deployment_show
+
+Show deployment details.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="deployment_id" type="string">
+  Deployment ID (uses active if omitted)
+</ParamField>
+
+**Returns:**
+```json
+{
+  "id": "dep-123",
+  "active": true,
+  "jobs": [
+    {
+      "id": "web-app",
+      "enabled": true,
+      "type": "service"
+    }
+  ]
+}
+```
+
+### device_deployment_rm
+
+Remove a deployment.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="deployment_id" type="string" required>
+  Deployment ID to remove
+</ParamField>
+
+**Returns:**
+```json
+{"status": "removed"}
+```
+
+### device_deployment_active
+
+Get the currently active deployment.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+**Returns:**
+```json
+{
+  "active_deployment_id": "dep-123"
+}
+```
+
+### device_deployment_activate
+
+Set the active deployment.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="deployment_id" type="string" required>
+  Deployment ID to activate
+</ParamField>
+
+**Returns:**
+```json
+{"status": "activated"}
+```
+
+### device_deployment_status **[Batch]**
+
+Get deployment status. Supports batch operations.
+
+**Parameters:**
+<ParamField path="device" type="string">
+  Single device name or ID (mutually exclusive with `devices`)
+</ParamField>
+
+<ParamField path="devices" type="string[]">
+  Multiple device names/IDs (mutually exclusive with `device`)
+</ParamField>
+
+<ParamField path="deployment_id" type="string">
+  Deployment ID (uses active if omitted)
+</ParamField>
+
+**Returns (single):**
+```json
+{
+  "deployment_id": "dep-123",
+  "status": "running",
+  "jobs": [
+    {
+      "id": "web-app",
+      "status": "running",
+      "health": "healthy"
+    }
+  ]
+}
+```
+
+**Returns (batch):**
+```json
+{
+  "results": [
+    {"device": "device-1", "deployment_id": "dep-123", ...},
+    {"device": "device-2", "error": "No active deployment"}
+  ]
+}
+```
+
+### device_deployment_clone
+
+Clone a deployment.
+
+**Parameters:**
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="deployment_id" type="string" required>
+  Source deployment ID to clone
+</ParamField>
+
+<ParamField path="active" type="boolean" default="false">
+  Make cloned deployment active immediately
+</ParamField>
+
+**Returns:**
+```json
+{
+  "id": "dep-789",
+  "active": false,
+  "jobs": [...]
+}
+```
+
+## Organization Management
+
+### org_list
+
+List organizations.
+
+**Parameters:** None
+
+**Returns:**
+```json
+[
+  {
+    "id": "my-org",
+    "owner": "owner@example.com",
+    "members": 5
+  }
+]
+```
+
+### org_create
+
+Create an organization.
+
+**Parameters:**
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Owner email address
+</ParamField>
+
+**Returns:**
+```json
+{"status": "created"}
+```
+
+### org_delete
+
+Delete an organization.
+
+**Parameters:**
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+**Returns:**
+```json
+{"status": "deleted"}
+```
+
+### org_update
+
+Update organization.
+
+**Parameters:**
+<ParamField path="id" type="string" required>
+  Current organization ID
+</ParamField>
+
+<ParamField path="new_id" type="string" required>
+  New organization ID
+</ParamField>
+
+**Returns:**
+```json
+{"status": "updated"}
+```
+
+### org_members_list
+
+List organization members.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+**Returns:**
+```json
+[
+  {
+    "email": "user@example.com",
+    "role": "editor"
+  }
+]
+```
+
+### org_members_add
+
+Add organization member.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Member email address
+</ParamField>
+
+<ParamField path="role" type="string" required>
+  Role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+**Returns:**
+```json
+{"status": "added"}
+```
+
+### org_members_remove
+
+Remove organization member.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Member email address
+</ParamField>
+
+**Returns:**
+```json
+{"status": "removed"}
+```
+
+### org_devices_list
+
+List organization devices.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+**Returns:**
+```json
+[
+  {
+    "id": "dev-123",
+    "name": "my-device",
+    "status": "online"
+  }
+]
+```
+
+### org_devices_add
+
+Add device to organization.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+**Returns:**
+```json
+{"status": "added"}
+```
+
+### org_devices_remove
+
+Remove device from organization.
+
+**Parameters:**
+<ParamField path="org_id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+**Returns:**
+```json
+{"status": "removed"}
+```

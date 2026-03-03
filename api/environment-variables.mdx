@@ -1,0 +1,162 @@
+---
+title: Environment Variables
+description: Environment variables for m87 server configuration
+icon: gear
+---
+
+These environment variables configure the m87 server. They are typically set in a `.env` file in the server directory.
+
+## Database Configuration
+
+<ParamField path="MONGO_URI" type="string" required>
+  MongoDB connection string. Usually points to the Mongo service name inside docker-compose.
+  
+  **Example:** `mongodb://mongo:27017`
+</ParamField>
+
+<ParamField path="MONGO_DB" type="string" required default="m87-server">
+  Logical database name used by m87-server.
+</ParamField>
+
+<ParamField path="MONGO_INITDB_ROOT_USERNAME" type="string">
+  MongoDB root username. Only required for secured Mongo setups.
+</ParamField>
+
+<ParamField path="MONGO_INITDB_ROOT_PASSWORD" type="string">
+  MongoDB root password. Only required for secured Mongo setups.
+</ParamField>
+
+## Authentication & OAuth
+
+<ParamField path="OAUTH_ISSUER" type="string" required>
+  OAuth/OIDC issuer URL used to validate access tokens.
+  
+  **Example:** `https://auth.make87.com/`
+</ParamField>
+
+<ParamField path="OAUTH_AUDIENCE" type="string" required>
+  Expected OAuth audience for access tokens. Must match the `aud` claim issued by the auth provider.
+  
+  **Example:** `https://auth.make87.com`
+</ParamField>
+
+## Server Networking
+
+<ParamField path="PUBLIC_ADDRESS" type="string" required>
+  Public base address under which this server is reachable. Used to check the SNI of incoming requests for device ID prefixes.
+  
+  **Example:** `your.public.domain`
+</ParamField>
+
+<ParamField path="UNIFIED_PORT" type="number" required default="8084">
+  Port for the unified public interface (typically proxied). Needs to match the port mapped to 443 for QUIC endpoints.
+</ParamField>
+
+<ParamField path="REST_PORT" type="number" required default="8085">
+  Port for the REST API (may be internal or separately exposed). Used for the WebTransport endpoint for the web app. Mapped to 8080.
+</ParamField>
+
+## Environment Flags
+
+<ParamField path="STAGING" type="number" default="0">
+  Whether the server runs in staging mode.
+  
+  - `0` = production behavior
+  - `1` = staging / relaxed checks / verbose logging
+</ParamField>
+
+<ParamField path="USERS_NEED_APPROVAL" type="boolean" default="false">
+  Whether newly registered users require manual approval.
+  
+  - `true` = user accounts start inactive until approved
+  - `false` = users are active immediately
+</ParamField>
+
+<ParamField path="ALLOW_CROSS_ORG_DEVICE_SHARING" type="boolean" default="false">
+  Whether devices can be shared across users of different organizations.
+  
+  - `true` = cross-org device sharing allowed
+  - `false` = devices are restricted to their org
+</ParamField>
+
+<ParamField path="USER_AUTO_ACCEPT_DOMAINS" type="string">
+  Domains that are auto-approved on signup. If a user's email domain matches one of these, approval is skipped.
+  
+  Comma-separated list with no spaces.
+  
+  **Example:** `make87.com,example.org`
+</ParamField>
+
+## Admin & Security
+
+<ParamField path="ADMIN_KEY" type="string" required>
+  Static admin API key used for privileged actions such as:
+  - Approving users
+  - Creating organizations
+  - Bootstrapping admin access
+  
+  **Default:** `change-me` (must be changed in production)
+</ParamField>
+
+<ParamField path="ADMIN_EMAILS" type="string">
+  List of email addresses that should automatically receive admin privileges.
+  
+  Comma-separated list with no spaces.
+  
+  **Example:** `admin@org.com,admin@example.org`
+</ParamField>
+
+## Data Retention
+
+<ParamField path="AUDIT_RETENTION_DAYS" type="number" default="30">
+  Number of days audit log entries are retained. Older entries are automatically deleted.
+</ParamField>
+
+<ParamField path="REPORT_RETENTION_DAYS" type="number" default="7">
+  Number of days deployment/report data is retained. Older reports are automatically deleted.
+</ParamField>
+
+## Example Configuration
+
+```bash .env
+# Database
+MONGO_URI=mongodb://mongo:27017
+MONGO_DB=m87-server
+
+# Auth
+OAUTH_ISSUER=https://auth.make87.com/
+OAUTH_AUDIENCE=https://auth.make87.com
+
+# Networking
+PUBLIC_ADDRESS=api.example.com
+UNIFIED_PORT=8084
+REST_PORT=8085
+
+# Environment
+STAGING=0
+USERS_NEED_APPROVAL=false
+ALLOW_CROSS_ORG_DEVICE_SHARING=false
+USER_AUTO_ACCEPT_DOMAINS=example.com,trusted.org
+
+# Security
+ADMIN_KEY=your-secret-admin-key
+ADMIN_EMAILS=admin@example.com
+
+# Retention
+AUDIT_RETENTION_DAYS=30
+REPORT_RETENTION_DAYS=7
+```
+
+## Security Best Practices
+
+<Warning>
+  Always change the default `ADMIN_KEY` from `change-me` to a strong, randomly generated value in production environments.
+</Warning>
+
+<Tip>
+  Store sensitive environment variables (like `ADMIN_KEY` and database credentials) in a secure secrets manager rather than committing them to version control.
+</Tip>
+
+<Note>
+  The `.env.example` file in the repository provides a template with all available options and their descriptions.
+</Note>

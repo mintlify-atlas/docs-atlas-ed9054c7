@@ -1,0 +1,337 @@
+---
+title: MCP Server Overview
+description: Model Context Protocol integration for AI agent access
+icon: robot
+---
+
+The m87 CLI includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that exposes all platform commands as tools for AI agents.
+
+## What is MCP?
+
+MCP (Model Context Protocol) is a standard protocol for connecting AI assistants to external tools and data sources. The m87 MCP server allows AI agents to programmatically interact with your devices, deployments, and infrastructure.
+
+## Quick Start
+
+Start the MCP server:
+
+```bash
+m87 mcp
+```
+
+The server runs on stdin/stdout and communicates via the MCP protocol.
+
+## Configuration
+
+### Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "m87": {
+      "command": "m87",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+If `m87` is not in your `PATH`, use an absolute path:
+
+```json
+{
+  "mcpServers": {
+    "m87": {
+      "command": "/usr/local/bin/m87",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Claude Code
+
+Add to your MCP settings:
+
+```json
+{
+  "m87": {
+    "type": "stdio",
+    "command": "m87",
+    "args": ["mcp"]
+  }
+}
+```
+
+### Other MCP Clients
+
+Any MCP-compatible client can connect to the m87 server using the stdio transport:
+
+```json
+{
+  "type": "stdio",
+  "command": "m87",
+  "args": ["mcp"]
+}
+```
+
+## Server Information
+
+<ParamField path="name" type="string">
+  `m87-mcp`
+</ParamField>
+
+<ParamField path="version" type="string">
+  Matches m87 CLI version
+</ParamField>
+
+<ParamField path="capabilities" type="object">
+  - Tools: Yes
+  - Prompts: No
+  - Resources: No
+</ParamField>
+
+## Available Tools
+
+The MCP server exposes the following categories of tools:
+
+### Device Management
+- `devices_list` - List all accessible devices
+- `devices_approve` - Approve pending device registrations
+- `devices_reject` - Reject pending device registrations
+- `device_status` - Get device health and status (supports batch)
+- `device_audit_logs` - Get device audit logs (supports batch)
+
+### Device Access Control
+- `device_access_list` - List users with device access
+- `device_access_add` - Grant device access
+- `device_access_remove` - Revoke device access
+
+### File Operations
+- `device_ls` - List files on device
+- `device_cp` - Copy files between local and remote
+- `device_sync` - Sync files (rsync-style)
+
+### Remote Execution
+- `device_exec` - Execute commands on devices (supports batch)
+- `docker_exec` - Run Docker commands on devices
+
+### Port Forwarding
+- `forward_start` - Start persistent port forwarding session
+- `forward_stop` - Stop forwarding session
+- `forward_list` - List active forwarding sessions
+
+### Deployments
+- `device_deploy` - Deploy specs to devices
+- `device_undeploy` - Remove deployment specs
+- `device_deployment_list` - List deployments (supports batch)
+- `device_deployment_new` - Create new deployment
+- `device_deployment_show` - Show deployment details
+- `device_deployment_status` - Get deployment status (supports batch)
+- `device_deployment_active` - Get active deployment ID
+- `device_deployment_activate` - Set active deployment
+- `device_deployment_rm` - Remove deployment
+- `device_deployment_clone` - Clone deployment
+
+### Organization Management
+- `org_list` - List organizations
+- `org_create` - Create organization
+- `org_delete` - Delete organization
+- `org_update` - Update organization
+- `org_members_list` - List organization members
+- `org_members_add` - Add organization member
+- `org_members_remove` - Remove organization member
+- `org_devices_list` - List organization devices
+- `org_devices_add` - Add device to organization
+- `org_devices_remove` - Remove device from organization
+
+See [MCP Tools Reference](/api/mcp-tools) for detailed tool documentation.
+
+## Batch Operations
+
+Many tools support batch operations for efficiency. Instead of passing a single `device` parameter, you can pass a `devices` array:
+
+```json
+// Single device
+{
+  "device": "my-device"
+}
+
+// Multiple devices (batch)
+{
+  "devices": ["device-1", "device-2", "device-3"]
+}
+```
+
+Batch-supported tools:
+- `device_status`
+- `device_audit_logs`
+- `device_exec`
+- `device_deployment_list`
+- `device_deployment_status`
+
+Batch operations run in parallel and return an array of results:
+
+```json
+{
+  "results": [
+    {"device": "device-1", "status": "online", ...},
+    {"device": "device-2", "status": "offline", ...},
+    {"device": "device-3", "error": "Not found"}
+  ]
+}
+```
+
+## Authentication
+
+The MCP server uses your existing m87 CLI credentials. Ensure you're logged in before starting the server:
+
+```bash
+m87 login
+m87 mcp
+```
+
+## Error Handling
+
+The MCP server returns errors in two ways:
+
+1. **MCP-level errors**: Invalid requests, missing parameters, etc.
+2. **Operation errors**: Returned as data in the response (e.g., command failures)
+
+### Example: Command with Non-Zero Exit
+
+```json
+// device_exec returns exit codes as data, not errors
+{
+  "output": "command not found: invalid-cmd",
+  "exit_code": 127
+}
+```
+
+This allows agents to handle failures gracefully.
+
+## Output Formatting
+
+All tool responses:
+- Return JSON-formatted data
+- Strip ANSI color codes (not useful for AI agents)
+- Include relevant context (device names, IDs, etc.)
+
+## Session Management
+
+The MCP server supports long-running operations:
+
+### Port Forwarding Sessions
+
+Forwarding runs in the background and persists across multiple tool calls:
+
+```python
+# Start forwarding
+result = call_tool("forward_start", {
+  "device": "my-device",
+  "specs": ["8080:80", "3000:3000"]
+})
+session_id = result["session_id"]
+
+# Do other work while forwarding is active
+# ...
+
+# Stop when done
+call_tool("forward_stop", {"session_id": session_id})
+```
+
+### Docker Containers
+
+For long-running containers, use the `-d` (detached) flag:
+
+```python
+result = call_tool("docker_exec", {
+  "device": "my-device",
+  "args": ["run", "-d", "--name", "nginx", "nginx"],
+  "timeout_secs": 60
+})
+container_id = result["stdout"].strip()
+```
+
+## Best Practices
+
+<Tip>
+  Use batch operations when querying multiple devices to reduce round-trip time.
+</Tip>
+
+<Tip>
+  Set appropriate `timeout_secs` for long-running operations like Docker builds or large file transfers.
+</Tip>
+
+<Warning>
+  The MCP server has full access to all devices you can access via the CLI. Ensure proper authentication and access controls.
+</Warning>
+
+<Note>
+  The server automatically handles device name resolution, authentication, and connection management.
+</Note>
+
+## Example Use Cases
+
+### Fleet Status Check
+
+```python
+# Check status of all production devices
+result = call_tool("device_status", {
+  "devices": ["prod-1", "prod-2", "prod-3"]
+})
+```
+
+### Deploy to Multiple Devices
+
+```python
+devices = ["web-1", "web-2", "web-3"]
+for device in devices:
+  call_tool("device_deploy", {
+    "device": device,
+    "file": "./docker-compose.yml",
+    "name": "web-app"
+  })
+```
+
+### Collect Logs from Fleet
+
+```python
+result = call_tool("device_exec", {
+  "devices": ["app-1", "app-2", "app-3"],
+  "command": ["journalctl", "-u", "app", "--since", "1h"]
+})
+for r in result["results"]:
+  print(f"{r['device']}: {r['output']}")
+```
+
+## Troubleshooting
+
+### Server Won't Start
+
+Ensure you're logged in:
+```bash
+m87 login
+m87 mcp
+```
+
+### Tools Not Appearing
+
+Check MCP client logs. The server should advertise all tools on initialization.
+
+### Authentication Errors
+
+Token may have expired. Re-login:
+```bash
+m87 logout
+m87 login
+```
+
+## Version Compatibility
+
+The MCP server is available in m87 CLI version 0.1.0 and later. Check your version:
+
+```bash
+m87 version
+```

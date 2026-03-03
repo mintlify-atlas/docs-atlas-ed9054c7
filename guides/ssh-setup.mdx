@@ -1,0 +1,136 @@
+---
+title: SSH Integration
+description: Set up and use SSH integration with m87 for seamless device access
+---
+
+The m87 CLI includes built-in SSH integration, allowing you to use standard SSH clients to connect to your remote devices using the familiar `.m87` domain suffix.
+
+## Overview
+
+Once enabled, m87's SSH integration allows you to use native SSH commands to access your devices without needing to use the m87 CLI directly. This works with any SSH client and all SSH-based tools like `scp`, `rsync`, and `git`.
+
+## Enable SSH Integration
+
+<Steps>
+  <Step title="Enable SSH Host Resolving">
+    Run the following command to enable SSH integration:
+    
+    ```bash
+    m87 ssh enable
+    ```
+    
+    This configures your SSH client to route `.m87` domain connections through the m87 CLI.
+  </Step>
+  
+  <Step title="Connect to Your Device">
+    Once enabled, you can connect to any device using SSH:
+    
+    ```bash
+    ssh <device>.m87
+    ```
+    
+    Replace `<device>` with your device identifier (e.g., `my-device.m87`).
+  </Step>
+</Steps>
+
+## Usage Examples
+
+### Basic SSH Connection
+
+```bash
+ssh production-server.m87
+```
+
+### Copy Files with SCP
+
+```bash
+# Copy from device to local
+scp production-server.m87:/var/log/app.log ./
+
+# Copy from local to device
+scp ./config.yml production-server.m87:/etc/app/
+```
+
+### Sync with Rsync
+
+```bash
+# Sync local directory to device
+rsync -avz ./src/ production-server.m87:/opt/app/src/
+
+# Sync from device to local
+rsync -avz production-server.m87:/var/backups/ ./backups/
+```
+
+### Execute Remote Commands
+
+```bash
+# Run a single command
+ssh production-server.m87 "systemctl status nginx"
+
+# Run multiple commands
+ssh production-server.m87 "cd /opt/app && git pull && systemctl restart app"
+```
+
+### Git over SSH
+
+```bash
+# Clone a repository from a device
+git clone production-server.m87:/opt/repos/myproject.git
+
+# Add a device as a git remote
+git remote add production ssh://production-server.m87/opt/repos/myproject.git
+```
+
+## How It Works
+
+When you enable SSH integration, m87 configures your SSH client to:
+
+1. Recognize `.m87` domain suffixes
+2. Route these connections through the m87 CLI
+3. Establish a secure tunnel to your device through the m87 platform
+4. Forward the SSH session to the device
+
+This allows you to use standard SSH tools while benefiting from m87's authentication and tunnel management.
+
+## Compatibility
+
+The SSH integration works with:
+
+- Standard SSH clients (`ssh`, `openssh-client`)
+- SCP and SFTP
+- Rsync over SSH
+- Git over SSH
+- Any tool that uses SSH as a transport layer
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused or timeout">
+    Ensure that:
+    - You're authenticated: run `m87 login`
+    - The device is online: check with `m87 devices list`
+    - SSH integration is enabled: run `m87 ssh enable` again
+  </Accordion>
+  
+  <Accordion title="Device not found">
+    Verify the device name:
+    ```bash
+    m87 devices list
+    ```
+    
+    Use the exact device identifier from the list.
+  </Accordion>
+  
+  <Accordion title="Permission denied">
+    Make sure you have access to the device. Check your device permissions with:
+    ```bash
+    m87 devices list
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Commands
+
+- [`m87 <device> shell`](/commands/device-access) - Direct shell access without SSH
+- [`m87 cp`](/commands/file-transfer) - Native m87 file copy
+- [`m87 sync`](/commands/file-transfer) - Native m87 file sync

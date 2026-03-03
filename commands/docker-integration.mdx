@@ -1,0 +1,474 @@
+---
+title: Docker Integration Commands
+description: Manage Docker containers and run docker-compose on remote devices
+---
+
+## Overview
+
+The m87 CLI provides seamless Docker integration, allowing you to run any Docker command on remote devices as if you were working locally. This includes full support for Docker Compose for deploying multi-container applications.
+
+---
+
+## Docker Command
+
+Execute Docker commands on remote devices using Docker passthrough.
+
+### Syntax
+
+```bash
+m87 <device> docker <ARGS>...
+```
+
+All standard Docker commands and flags are supported.
+
+### Prerequisites
+
+<Note>
+**Before using Docker commands:**
+
+1. Docker must be installed on the remote device
+2. The device user must be in the `docker` group or have root permissions
+3. Docker daemon must be running
+
+To add user to docker group:
+```bash
+m87 <device> exec -it -- sudo usermod -aG docker $USER
+```
+</Note>
+
+---
+
+## Container Management
+
+### List and Inspect Containers
+
+<CodeGroup>
+```bash List Containers
+# List running containers
+m87 rpi docker ps
+
+# List all containers (including stopped)
+m87 rpi docker ps -a
+
+# List with custom format
+m87 rpi docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+```bash Inspect Containers
+# View container details
+m87 rpi docker inspect myapp
+
+# View container logs
+m87 rpi docker logs myapp
+
+# Follow logs in real-time
+m87 rpi docker logs -f myapp
+
+# View last 100 lines
+m87 rpi docker logs --tail 100 myapp
+```
+</CodeGroup>
+
+### Container Lifecycle
+
+<CodeGroup>
+```bash Run Containers
+# Run container in detached mode
+m87 rpi docker run -d --name nginx -p 80:80 nginx
+
+# Run with environment variables
+m87 rpi docker run -d --name app \
+  -e NODE_ENV=production \
+  -e PORT=3000 \
+  -p 3000:3000 \
+  myapp:latest
+
+# Run with volume mount
+m87 rpi docker run -d --name db \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:15
+```
+
+```bash Control Containers
+# Stop container
+m87 rpi docker stop myapp
+
+# Start stopped container
+m87 rpi docker start myapp
+
+# Restart container
+m87 rpi docker restart myapp
+
+# Remove container
+m87 rpi docker rm myapp
+
+# Force remove running container
+m87 rpi docker rm -f myapp
+```
+</CodeGroup>
+
+### Bulk Operations
+
+```bash
+# Stop all running containers
+m87 rpi docker ps -q | xargs -r m87 rpi docker stop
+
+# Remove all stopped containers
+m87 rpi docker container prune -f
+
+# Kill all running containers
+m87 rpi docker ps -q | xargs -r m87 rpi docker kill
+```
+
+<Warning>
+Be careful with bulk operations. Always verify which containers will be affected by running `m87 <device> docker ps` first.
+</Warning>
+
+---
+
+## Image Management
+
+<CodeGroup>
+```bash List and Pull Images
+# List images
+m87 rpi docker images
+
+# Pull image from Docker Hub
+m87 rpi docker pull nginx:alpine
+
+# Pull specific version
+m87 rpi docker pull postgres:15.3
+
+# Pull from private registry
+m87 rpi docker pull myregistry.com/myapp:latest
+```
+
+```bash Build Images
+# Build image from Dockerfile in current directory
+m87 rpi docker build -t myapp:latest .
+
+# Build with custom Dockerfile
+m87 rpi docker build -f Dockerfile.prod -t myapp:prod .
+
+# Build with build args
+m87 rpi docker build \
+  --build-arg NODE_VERSION=18 \
+  --build-arg ENV=production \
+  -t myapp:latest .
+```
+
+```bash Manage Images
+# Tag image
+m87 rpi docker tag myapp:latest myapp:v1.0.0
+
+# Remove image
+m87 rpi docker rmi myapp:old
+
+# Remove unused images
+m87 rpi docker image prune -a -f
+```
+</CodeGroup>
+
+---
+
+## Docker Compose
+
+Deploy and manage multi-container applications with Docker Compose.
+
+### Basic Compose Commands
+
+<CodeGroup>
+```bash Deploy Stack
+# Deploy from local directory with docker-compose.yml
+cd my-project
+m87 rpi docker compose up -d
+
+# Specify compose file location
+m87 rpi docker compose --project-directory ./my-app up -d
+
+# Deploy specific services
+m87 rpi docker compose up -d web api
+```
+
+```bash Manage Stack
+# View stack status
+m87 rpi docker compose ps
+
+# View logs
+m87 rpi docker compose logs
+
+# Follow logs
+m87 rpi docker compose logs -f
+
+# View logs for specific service
+m87 rpi docker compose logs -f web
+```
+
+```bash Update and Rebuild
+# Rebuild and restart services
+m87 rpi docker compose up -d --build
+
+# Pull latest images and restart
+m87 rpi docker compose pull
+m87 rpi docker compose up -d
+
+# Restart specific service
+m87 rpi docker compose restart web
+```
+
+```bash Stop and Remove
+# Stop services (keeps containers)
+m87 rpi docker compose stop
+
+# Stop and remove containers
+m87 rpi docker compose down
+
+# Remove containers and volumes
+m87 rpi docker compose down -v
+
+# Remove containers, volumes, and images
+m87 rpi docker compose down -v --rmi all
+```
+</CodeGroup>
+
+---
+
+## Example: Simple Compose Project
+
+Here's a working example that demonstrates Docker Compose with m87:
+
+### docker-compose.yml
+
+```yaml
+services:
+  pause:
+    image: registry.k8s.io/pause:3.9
+    container_name: test-pause
+    restart: unless-stopped
+
+  custom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test-custom
+    init: true
+    restart: unless-stopped
+    environment:
+      - TEST_VAR=hello-from-compose
+```
+
+### Deploy Example
+
+<CodeGroup>
+```bash Deploy
+cd examples/features/docker-compose/simple
+m87 rpi docker compose up -d
+```
+
+```bash Monitor
+# View running containers
+m87 rpi docker compose ps
+
+# View logs
+m87 rpi docker compose logs -f
+```
+
+```bash Teardown
+# Stop and remove
+m87 rpi docker compose down
+```
+</CodeGroup>
+
+---
+
+## Advanced Docker Commands
+
+### Network Management
+
+```bash
+# List networks
+m87 rpi docker network ls
+
+# Create network
+m87 rpi docker network create mynetwork
+
+# Connect container to network
+m87 rpi docker network connect mynetwork myapp
+
+# Inspect network
+m87 rpi docker network inspect mynetwork
+```
+
+### Volume Management
+
+```bash
+# List volumes
+m87 rpi docker volume ls
+
+# Create volume
+m87 rpi docker volume create mydata
+
+# Inspect volume
+m87 rpi docker volume inspect mydata
+
+# Remove unused volumes
+m87 rpi docker volume prune -f
+```
+
+### System Information
+
+```bash
+# Check Docker version
+m87 rpi docker version
+
+# View system info
+m87 rpi docker info
+
+# View disk usage
+m87 rpi docker system df
+
+# Clean up everything
+m87 rpi docker system prune -a --volumes -f
+```
+
+---
+
+## Real-World Workflows
+
+### Deploy Web Application
+
+<CodeGroup>
+```bash Initial Deployment
+# 1. Sync application code
+m87 sync ./myapp rpi:myapp --exclude node_modules
+
+# 2. Build and run containers
+m87 rpi docker compose --project-directory ~/myapp up -d --build
+
+# 3. Check status
+m87 rpi docker compose --project-directory ~/myapp ps
+```
+
+```bash Update Application
+# 1. Sync code changes
+m87 sync ./myapp rpi:myapp --exclude node_modules
+
+# 2. Rebuild and restart
+m87 rpi docker compose --project-directory ~/myapp up -d --build
+
+# 3. View logs
+m87 rpi docker compose --project-directory ~/myapp logs -f
+```
+</CodeGroup>
+
+### Database Backup
+
+```bash
+# Create database backup
+m87 rpi docker exec postgres pg_dump -U postgres mydb > backup.sql
+
+# Download backup
+m87 cp rpi:backup.sql ./backups/mydb-$(date +%Y%m%d).sql
+```
+
+### Development with Hot Reload
+
+```bash
+# Terminal 1: Watch and sync code
+m87 sync ./src rpi:project/src --watch --exclude node_modules
+
+# Terminal 2: Watch application logs
+m87 rpi docker compose --project-directory ~/project logs -f web
+```
+
+### Container Debugging
+
+```bash
+# Execute shell in running container
+m87 rpi docker exec -it myapp /bin/bash
+
+# View container processes
+m87 rpi docker top myapp
+
+# View container resource usage
+m87 rpi docker stats myapp
+
+# View container filesystem changes
+m87 rpi docker diff myapp
+```
+
+---
+
+## Docker with Port Forwarding
+
+Access containerized services locally:
+
+```bash
+# 1. Deploy application
+m87 rpi docker run -d --name web -p 8080:80 nginx
+
+# 2. Forward port to local machine
+m87 rpi forward 8080
+
+# 3. Access at http://localhost:8080
+```
+
+---
+
+## Troubleshooting
+
+### Check Docker Status
+
+```bash
+# Verify Docker is running
+m87 rpi exec -- systemctl status docker
+
+# Check Docker daemon logs
+m87 rpi exec -- journalctl -u docker -n 50
+```
+
+### Permission Issues
+
+```bash
+# Add user to docker group
+m87 rpi exec -it -- sudo usermod -aG docker $USER
+
+# Verify group membership (requires re-login)
+m87 rpi exec -- groups
+```
+
+### Container Won't Start
+
+```bash
+# Check container logs
+m87 rpi docker logs myapp
+
+# Inspect container configuration
+m87 rpi docker inspect myapp
+
+# Check resource usage
+m87 rpi docker stats --no-stream
+```
+
+---
+
+## Performance Tips
+
+<Tip>
+**Optimize Docker operations:**
+
+- Use `.dockerignore` to exclude unnecessary files from build context
+- Use multi-stage builds to reduce image size
+- Clean up unused images and containers regularly with `docker system prune`
+- Use specific image tags instead of `latest` for reproducibility
+- Mount volumes for persistent data instead of storing in containers
+</Tip>
+
+---
+
+## Related Commands
+
+- [Deployments](/commands/deployments) - Automated deployment management
+- [Device Access](/commands/device-access) - Execute commands on devices
+- [Port Forwarding](/commands/port-forwarding) - Access container ports locally
+- [File Transfer](/commands/file-transfer) - Sync application code to devices

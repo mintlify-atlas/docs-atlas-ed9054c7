@@ -1,0 +1,255 @@
+---
+title: Model Context Protocol Integration
+description: Integrate m87 with AI agents using the Model Context Protocol (MCP)
+---
+
+The m87 CLI includes a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server, enabling AI agents to interact with your edge devices and use all m87 platform commands as tools.
+
+## Overview
+
+The MCP integration exposes m87's functionality to AI agents, allowing them to:
+
+- Query device status and metrics
+- Execute commands on remote devices
+- Manage deployments
+- Forward ports
+- Access logs and audit trails
+- Transfer files
+- And more
+
+This enables natural language device management through AI assistants like Claude.
+
+## Setup
+
+<Steps>
+  <Step title="Verify m87 Installation">
+    Ensure m87 is installed and accessible in your PATH:
+    
+    ```bash
+    which m87
+    ```
+    
+    If not installed, follow the [installation guide](/installation).
+  </Step>
+  
+  <Step title="Configure Your MCP Client">
+    Add m87 to your MCP client configuration. The configuration varies by client:
+    
+    ### Claude Desktop / Claude Code
+    
+    Edit your MCP settings file:
+    
+    **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    
+    **Linux**: `~/.config/Claude/claude_desktop_config.json`
+    
+    Add the following configuration:
+    
+    ```json
+    {
+      "mcpServers": {
+        "m87": {
+          "type": "stdio",
+          "command": "m87",
+          "args": ["mcp"]
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Authenticate">
+    Ensure you're logged in to m87:
+    
+    ```bash
+    m87 login
+    ```
+    
+    The MCP server will use your existing authentication.
+  </Step>
+  
+  <Step title="Restart Your MCP Client">
+    Restart Claude Desktop or your MCP client to load the new configuration.
+  </Step>
+</Steps>
+
+## Configuration Options
+
+### Using Absolute Path
+
+If `m87` is not in your PATH, specify the full path to the binary:
+
+```json
+{
+  "mcpServers": {
+    "m87": {
+      "type": "stdio",
+      "command": "/usr/local/bin/m87",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+To find the full path:
+
+```bash
+which m87
+```
+
+### Custom Environment Variables
+
+You can pass environment variables to the MCP server:
+
+```json
+{
+  "mcpServers": {
+    "m87": {
+      "type": "stdio",
+      "command": "m87",
+      "args": ["mcp"],
+      "env": {
+        "RUST_LOG": "debug"
+      }
+    }
+  }
+}
+```
+
+## Usage Examples
+
+Once configured, you can interact with your devices through natural language in your AI assistant:
+
+### Device Management
+
+<CodeGroup>
+```text Example Prompt
+"List all my connected devices"
+```
+
+```text Example Prompt
+"Show me the status of my production-server"
+```
+
+```text Example Prompt
+"Check the health and any incidents on device-123"
+```
+</CodeGroup>
+
+### Remote Execution
+
+<CodeGroup>
+```text Example Prompt
+"Run 'systemctl status nginx' on production-server"
+```
+
+```text Example Prompt
+"Execute 'df -h' on all devices and summarize the disk usage"
+```
+</CodeGroup>
+
+### Logs and Monitoring
+
+<CodeGroup>
+```text Example Prompt
+"Show me the latest logs from my edge-device-01"
+```
+
+```text Example Prompt
+"Get system metrics for production-server"
+```
+
+```text Example Prompt
+"Check who accessed my device in the last 24 hours"
+```
+</CodeGroup>
+
+### Deployments
+
+<CodeGroup>
+```text Example Prompt
+"Show me the deployment status for production-server"
+```
+
+```text Example Prompt
+"What containers are running on edge-device-01?"
+```
+</CodeGroup>
+
+## Available MCP Tools
+
+The m87 MCP server exposes all platform commands as tools, including:
+
+- **Device Management**: List devices, check status, approve devices
+- **Remote Access**: Execute commands, open shells, forward ports
+- **File Operations**: Copy files, sync directories
+- **Container Management**: Docker passthrough, view containers
+- **Monitoring**: View logs, metrics, audit trails
+- **Deployments**: Deploy compose files, check deployment status
+- **Serial Access**: Forward serial mounts
+
+The AI agent will automatically select and use the appropriate tools based on your requests.
+
+## Supported MCP Clients
+
+The m87 MCP server works with any MCP-compatible client:
+
+- [Claude Desktop](https://claude.ai/download)
+- [Claude Code (VS Code extension)](https://marketplace.visualstudio.com/items?itemName=Anthropic.claude-code)
+- Any other MCP-compatible application
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MCP server not appearing in client">
+    - Verify the configuration file path is correct for your operating system
+    - Ensure the JSON syntax is valid
+    - Restart your MCP client after making changes
+    - Check that `m87` is accessible (run `which m87` or use absolute path)
+  </Accordion>
+  
+  <Accordion title="Authentication errors">
+    Make sure you're logged in:
+    ```bash
+    m87 login
+    ```
+    
+    The MCP server uses your existing m87 credentials.
+  </Accordion>
+  
+  <Accordion title="Command not found errors">
+    If you see errors about `m87` not being found:
+    
+    1. Find the full path: `which m87`
+    2. Use the absolute path in your configuration:
+    ```json
+    {
+      "command": "/full/path/to/m87",
+      "args": ["mcp"]
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Testing the MCP server">
+    You can test the MCP server directly:
+    
+    ```bash
+    m87 mcp
+    ```
+    
+    This will start the server in stdio mode. Press Ctrl+C to exit.
+  </Accordion>
+</AccordionGroup>
+
+## Security Considerations
+
+- The MCP server uses your existing m87 authentication
+- All operations are subject to your device permissions
+- Audit logs track all device interactions, including those via MCP
+- The MCP server runs with the same privileges as your user account
+
+## Learn More
+
+- [Model Context Protocol specification](https://modelcontextprotocol.io)
+- [m87 CLI Reference](/api/cli-reference)
+- [MCP Tools Reference](/api/mcp-tools)

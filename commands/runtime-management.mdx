@@ -1,0 +1,536 @@
+---
+title: Runtime Management Commands
+description: Manage the m87 runtime service on edge devices with start, stop, restart, enable, disable, and status commands
+---
+
+## Overview
+
+The m87 runtime is a service that runs on edge devices to enable remote access from the m87 CLI. Runtime management commands allow you to install, configure, and control this service using systemd.
+
+<Note>
+**Runtime commands are only available on Linux systems.** These commands manage the systemd service on edge devices, not on your local workstation.
+</Note>
+
+---
+
+## Prerequisites
+
+- **Linux system** (amd64 or arm64)
+- **systemd** installed and running
+- **sudo access** (commands automatically use sudo when needed)
+
+---
+
+## Runtime Commands Overview
+
+| Command | Description | Enables on Boot | Starts Service |
+|---------|-------------|-----------------|----------------|
+| `start` | Start service now | ✓ | ✓ |
+| `stop` | Stop service now | No change | ✗ |
+| `restart` | Restart service | No change | ✓ |
+| `enable` | Enable auto-start on boot | ✓ | ✗ |
+| `enable --now` | Enable and start | ✓ | ✓ |
+| `disable` | Disable auto-start | ✗ | No change |
+| `disable --now` | Disable and stop | ✗ | ✗ |
+| `status` | Show service status | - | - |
+
+---
+
+## Runtime Login
+
+Register the device as a runtime (headless flow, requires approval).
+
+### Syntax
+
+```bash
+m87 runtime login [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--org-id <ID>` | Register under specific organization ID |
+| `--email <EMAIL>` | Register under user's email address |
+
+<Note>
+You must specify either `--org-id` or `--email`, but not both.
+</Note>
+
+### Examples
+
+<CodeGroup>
+```bash Register with Organization
+# Register device under organization
+m87 runtime login --org-id my-company
+```
+
+```bash Register with Email
+# Register device under user account
+m87 runtime login --email user@example.com
+```
+</CodeGroup>
+
+### Approval Process
+
+1. Run `m87 runtime login` on the edge device
+2. The device shows up as "pending" in your device list
+3. From your workstation, approve the device:
+   ```bash
+   m87 devices list
+   m87 devices approve <device-name>
+   ```
+4. The device is now accessible remotely
+
+---
+
+## Runtime Logout
+
+Remove runtime credentials from the device.
+
+```bash
+m87 runtime logout
+```
+
+This deregisters the device and removes local authentication tokens.
+
+---
+
+## Start Runtime Service
+
+Start the runtime service immediately and enable auto-start on boot.
+
+### Syntax
+
+```bash
+m87 runtime start [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--org-id <ID>` | Organization ID for registration |
+| `--email <EMAIL>` | Email address for registration |
+
+### Behavior
+
+1. Installs systemd service file
+2. Enables service to start on boot
+3. Starts the service immediately
+4. Registers device if not already registered
+
+### Examples
+
+<CodeGroup>
+```bash Basic Start
+# Start runtime service
+m87 runtime start
+```
+
+```bash Start with Registration
+# Start and register under organization
+m87 runtime start --org-id my-company
+
+# Start and register under email
+m87 runtime start --email user@example.com
+```
+</CodeGroup>
+
+<Tip>
+Use `m87 runtime start` as the quickest way to set up a new device. It handles installation, registration, and startup in one command.
+</Tip>
+
+---
+
+## Stop Runtime Service
+
+Stop the running service (keeps enabled at boot).
+
+### Syntax
+
+```bash
+m87 runtime stop
+```
+
+### Behavior
+
+- Stops the currently running service
+- Service remains enabled to start on next boot
+- Device becomes unreachable until service is started again
+
+### Example
+
+```bash
+# Stop runtime service
+m87 runtime stop
+```
+
+<Note>
+Stopping the runtime makes the device inaccessible remotely. You'll need physical or local network access to start it again.
+</Note>
+
+---
+
+## Restart Runtime Service
+
+Restart the service (starts if stopped).
+
+### Syntax
+
+```bash
+m87 runtime restart [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--org-id <ID>` | Organization ID for registration |
+| `--email <EMAIL>` | Email address for registration |
+
+### Behavior
+
+- If running: restarts the service
+- If stopped: starts the service
+- Matches standard systemd `restart` behavior
+
+### Examples
+
+<CodeGroup>
+```bash Basic Restart
+# Restart runtime service
+m87 runtime restart
+```
+
+```bash Common Use Case: After Update
+# Update CLI and restart runtime
+m87 update
+m87 runtime restart
+```
+</CodeGroup>
+
+### Remote Update and Restart
+
+Update a remote device's runtime:
+
+```bash
+# Update and restart remote device
+m87 rpi exec -it -- 'm87 update && m87 runtime restart'
+```
+
+---
+
+## Enable Runtime Service
+
+Configure service to auto-start on boot.
+
+### Syntax
+
+```bash
+m87 runtime enable [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--now` | Enable AND start service immediately |
+| `--org-id <ID>` | Organization ID for registration |
+| `--email <EMAIL>` | Email address for registration |
+
+### Behavior
+
+- **Without `--now`**: Enables service for next boot (doesn't start now)
+- **With `--now`**: Enables service AND starts it immediately
+
+### Examples
+
+<CodeGroup>
+```bash Enable for Next Boot
+# Enable auto-start (doesn't start now)
+m87 runtime enable
+
+# Device will start runtime on next reboot
+```
+
+```bash Enable and Start Now
+# Enable and start immediately
+m87 runtime enable --now
+
+# Equivalent to 'm87 runtime start'
+```
+</CodeGroup>
+
+---
+
+## Disable Runtime Service
+
+Remove auto-start on boot.
+
+### Syntax
+
+```bash
+m87 runtime disable [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--now` | Disable AND stop service immediately |
+
+### Behavior
+
+- **Without `--now`**: Disables auto-start (keeps running now)
+- **With `--now`**: Disables auto-start AND stops service immediately
+
+### Examples
+
+<CodeGroup>
+```bash Disable Auto-Start
+# Disable auto-start (keeps running now)
+m87 runtime disable
+
+# Service runs until stopped or rebooted
+```
+
+```bash Disable and Stop
+# Disable and stop immediately
+m87 runtime disable --now
+
+# Service is stopped and won't start on boot
+```
+</CodeGroup>
+
+---
+
+## Runtime Status
+
+Show local runtime service status.
+
+### Syntax
+
+```bash
+m87 runtime status
+```
+
+### Example Output
+
+```bash
+m87 runtime status
+```
+
+```
+● m87-runtime.service - m87 Runtime Service
+     Loaded: loaded (/etc/systemd/system/m87-runtime.service; enabled)
+     Active: active (running) since Mon 2026-03-01 10:23:45 UTC; 2 days ago
+   Main PID: 1234 (m87)
+      Tasks: 8 (limit: 4915)
+     Memory: 24.5M
+        CPU: 1min 32.456s
+     CGroup: /system.slice/m87-runtime.service
+             └─1234 /usr/local/bin/m87 runtime run
+```
+
+---
+
+## Runtime Run (Advanced)
+
+Run the runtime daemon directly (used by systemd service).
+
+### Syntax
+
+```bash
+m87 runtime run [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--org-id <ID>` | Organization ID for registration |
+| `--email <EMAIL>` | Email address for registration |
+
+### Behavior
+
+- Runs in foreground (blocking)
+- Registers device if needed
+- Waits for approval if pending
+- Handles incoming connections
+
+<Warning>
+This command is typically only used by the systemd service. For normal operation, use `m87 runtime start` instead.
+</Warning>
+
+### Example
+
+```bash
+# Run runtime in foreground (for testing)
+m87 runtime run --email user@example.com
+```
+
+---
+
+## Complete Setup Workflow
+
+### On Edge Device
+
+<CodeGroup>
+```bash Quick Setup
+# One command to set up everything
+m87 runtime start --email user@example.com
+
+# Device is now:
+# - Registered (pending approval)
+# - Systemd service installed
+# - Service enabled on boot
+# - Service running
+```
+
+```bash Step-by-Step Setup
+# 1. Login/register
+m87 runtime login --email user@example.com
+
+# 2. Install and start service
+m87 runtime start
+
+# 3. Check status
+m87 runtime status
+```
+</CodeGroup>
+
+### On Workstation
+
+```bash
+# 1. List devices (shows pending)
+m87 devices list
+
+# 2. Approve device
+m87 devices approve my-edge-device
+
+# 3. Access device
+m87 my-edge-device shell
+```
+
+---
+
+## Service Management
+
+### The runtime service:
+
+- **Runs as your user** (not root)
+- **Managed by systemd** (start/stop/restart)
+- **Auto-starts on boot** (when enabled)
+- **Handles privilege escalation** with sudo when needed
+- **Logs to journald** (view with `journalctl -u m87-runtime`)
+
+### View Service Logs
+
+```bash
+# View recent logs
+journalctl -u m87-runtime -n 50
+
+# Follow logs in real-time
+journalctl -u m87-runtime -f
+
+# View logs from today
+journalctl -u m87-runtime --since today
+```
+
+---
+
+## Troubleshooting
+
+### Service Won't Start
+
+<CodeGroup>
+```bash Check Status
+# View detailed status
+m87 runtime status
+
+# View logs
+journalctl -u m87-runtime -n 100
+```
+
+```bash Common Fixes
+# Restart service
+m87 runtime restart
+
+# Re-login if credentials expired
+m87 runtime logout
+m87 runtime login --email user@example.com
+
+# Check systemd service
+systemctl status m87-runtime
+```
+</CodeGroup>
+
+### Device Unreachable
+
+```bash
+# On the edge device, check if runtime is running
+m87 runtime status
+
+# If stopped, start it
+m87 runtime start
+
+# Check network connectivity
+ping make87.com
+
+# View runtime logs for errors
+journalctl -u m87-runtime -f
+```
+
+### Permission Errors
+
+```bash
+# Ensure user is in correct groups
+groups
+
+# Re-login to apply group changes
+# (or reboot)
+```
+
+---
+
+## Command Behavior Summary
+
+### Start vs Enable
+
+- **`start`**: Enable on boot + start now
+- **`enable`**: Only enable on boot (doesn't start now)
+- **`enable --now`**: Same as `start`
+
+### Stop vs Disable
+
+- **`stop`**: Stop now (keeps enabled on boot)
+- **`disable`**: Only disable on boot (keeps running now)
+- **`disable --now`**: Disable on boot + stop now
+
+### Restart
+
+- Restarts if running
+- Starts if stopped
+- Standard systemd behavior
+
+---
+
+## Best Practices
+
+<Tip>
+**Runtime management tips:**
+
+1. **Always enable on boot** - Use `start` or `enable --now` for production
+2. **Monitor logs** - Check `journalctl` after startup for issues
+3. **Update regularly** - Keep runtime updated with `m87 update && m87 runtime restart`
+4. **Use organizations** - Register devices under org IDs for better fleet management
+5. **Document devices** - Keep track of device names and registration details
+</Tip>
+
+---
+
+## Related Commands
+
+- [Device Access](/commands/device-access) - Access devices after runtime is running
+- [Deployments](/commands/deployments) - Deploy applications to runtime devices

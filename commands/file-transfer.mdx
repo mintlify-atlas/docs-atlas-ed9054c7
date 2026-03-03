@@ -1,0 +1,313 @@
+---
+title: File Transfer Commands
+description: Copy and synchronize files between local and remote devices using cp and sync commands
+---
+
+## Overview
+
+m87 provides powerful file transfer capabilities using `device:path` syntax to reference remote locations. All file transfers use SFTP over the secure m87 tunnel.
+
+## Path Syntax
+
+Remote paths use scp-style resolution:
+
+```
+<device>:<path>    Remote path on device
+<path>             Local path
+```
+
+### Path Resolution Rules
+
+- **Relative paths** (no leading `/`) → Resolve to user's home directory
+- **Absolute paths** (starting with `/`) → Used as-is
+- **Tilde expansion** (`~`) → Expands to home directory
+
+### Examples
+
+```bash
+rpi:app              # Remote ~/app directory on device "rpi"
+rpi:/etc/config      # Absolute path /etc/config
+rpi:~/logs           # Explicit home directory path
+./src                # Local directory
+```
+
+---
+
+## Copy Command (cp)
+
+Copy individual files between local and remote devices (SCP-style).
+
+### Syntax
+
+```bash
+m87 cp <SOURCE> <DEST>
+```
+
+Either source or destination must be a remote path using `<device>:<path>` format.
+
+### Examples
+
+<CodeGroup>
+```bash Upload to Device
+# Copy local file to remote (relative path → ~/config.json)
+m87 cp ./config.json rpi:config.json
+
+# Copy local file to absolute path
+m87 cp ./config.json rpi:/etc/myapp/config.json
+
+# Copy entire directory
+m87 cp ./dist rpi:www
+```
+
+```bash Download from Device
+# Copy remote file to local
+m87 cp rpi:logs/app.log ./app.log
+
+# Download from absolute path
+m87 cp rpi:/var/log/syslog ./syslog.txt
+```
+
+```bash Device-to-Device Transfer
+# Copy between remote devices
+m87 cp rpi:data.db jetson:backup/data.db
+```
+</CodeGroup>
+
+<Note>
+The `cp` command is best for copying individual files or directories. For continuous synchronization with change detection, use the `sync` command.
+</Note>
+
+---
+
+## Sync Command
+
+Synchronize directories between local and remote devices (rsync-style).
+
+### Syntax
+
+```bash
+m87 sync <SOURCE> <DEST> [OPTIONS]
+```
+
+### Options
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--delete` | - | Remove files from destination not present in source |
+| `--watch` | - | Continuously sync on file changes (polls every 2s) |
+| `--dry-run` | `-n` | Show what would be synced without making changes |
+| `--exclude <PATTERN>` | `-e` | Exclude files matching pattern (can be used multiple times) |
+
+### Basic Examples
+
+<CodeGroup>
+```bash Push to Device
+# Push local directory to remote home
+m87 sync ./src rpi:app
+
+# Push to absolute path
+m87 sync ./src rpi:/home/pi/app
+```
+
+```bash Pull from Device
+# Pull remote directory to local
+m87 sync rpi:/var/log ./logs
+
+# Pull application data
+m87 sync rpi:myapp/data ./backup/data
+```
+
+```bash Delete Removed Files
+# Sync and delete files not in source
+m87 sync ./deploy rpi:app --delete
+```
+
+```bash Watch Mode
+# Watch for changes and auto-sync
+m87 sync ./src rpi:app --watch
+
+# Watch with delete
+m87 sync ./src rpi:app --watch --delete
+```
+</CodeGroup>
+
+### Exclude Patterns
+
+The `--exclude` flag supports:
+- **Exact names**: `--exclude node_modules` (matches any path component)
+- **Wildcards**: `--exclude "*.log"` (matches `app.log`, `error.log`, etc.)
+
+<CodeGroup>
+```bash Common Excludes
+# Exclude build artifacts and dependencies
+m87 sync ./project rpi:project \
+  --exclude node_modules \
+  --exclude .git \
+  --exclude __pycache__ \
+  --exclude "*.pyc" \
+  --exclude ".env"
+```
+
+```bash Development Workflow
+# Watch and sync, excluding build outputs
+m87 sync ./src rpi:project --watch \
+  --exclude node_modules \
+  --exclude dist \
+  --exclude "*.log"
+```
+</CodeGroup>
+
+### Dry Run
+
+Preview what will be synced without making changes:
+
+```bash
+# Preview sync operation
+m87 sync ./dist rpi:www --delete --dry-run
+
+# If satisfied, run the actual sync
+m87 sync ./dist rpi:www --delete
+```
+
+<Warning>
+Always use `--dry-run` first when using `--delete` to ensure you won't accidentally remove important files.
+</Warning>
+
+---
+
+## List Files Command (ls)
+
+List contents of a remote directory.
+
+### Syntax
+
+```bash
+m87 ls <device>:<path>
+```
+
+### Examples
+
+```bash
+# List files in home directory
+m87 ls rpi:projects
+
+# List system logs
+m87 ls rpi:/var/log
+
+# List root directory
+m87 ls rpi:/
+```
+
+---
+
+## Real-World Examples
+
+### Deploy Application
+
+<CodeGroup>
+```bash Initial Deploy
+# Sync source code to device
+m87 sync ./app rpi:myapp
+
+# Connect and install dependencies
+m87 rpi exec -- 'cd ~/myapp && npm install && pm2 restart all'
+```
+
+```bash Update Deploy
+# Sync changes excluding dependencies
+m87 sync ./app rpi:myapp --exclude node_modules
+
+# Restart application
+m87 rpi exec -- 'pm2 restart myapp'
+```
+</CodeGroup>
+
+### Development Workflow
+
+```bash
+# Terminal 1: Watch and sync code changes
+m87 sync ./src rpi:project --watch \
+  --exclude node_modules \
+  --exclude dist \
+  --exclude "*.log"
+
+# Terminal 2: Watch application logs
+m87 rpi logs -f
+```
+
+### Backup Remote Files
+
+<CodeGroup>
+```bash Backup Logs
+# Pull application logs
+m87 sync rpi:/var/log/myapp ./backups/logs
+
+# Pull with timestamp in directory name
+m87 sync rpi:/var/log/myapp ./backups/logs-$(date +%Y%m%d)
+```
+
+```bash Backup Configuration
+# Pull config files
+m87 sync rpi:/etc/myapp ./backups/config
+
+# Copy single config file
+m87 cp rpi:/etc/myapp/config.yaml ./config-backup.yaml
+```
+</CodeGroup>
+
+### Clean Deploy with Verification
+
+```bash
+# 1. Preview what will change
+m87 sync ./dist rpi:www --delete --dry-run
+
+# 2. Review the output carefully
+
+# 3. If satisfied, run the actual sync
+m87 sync ./dist rpi:www --delete
+
+# 4. Verify deployment
+m87 rpi exec -- ls -la ~/www
+```
+
+### Quick Script Deployment
+
+```bash
+# Upload a deployment script
+m87 cp ./deploy.sh rpi:deploy.sh
+
+# Make it executable
+m87 rpi exec -- chmod +x ~/deploy.sh
+
+# Run the script
+m87 rpi exec -it -- ./deploy.sh
+```
+
+### Database Backup
+
+```bash
+# Create backup on remote device
+m87 rpi exec -- pg_dump mydb > ~/backup.sql
+
+# Download the backup
+m87 cp rpi:backup.sql ./backups/db-$(date +%Y%m%d).sql
+```
+
+---
+
+## Performance Notes
+
+<Tip>
+- File transfers use SFTP over the m87 secure tunnel
+- Large files are transferred efficiently without loading into memory
+- `--watch` mode polls for changes every 2 seconds
+- Relative remote paths resolve to home directory for convenience
+</Tip>
+
+---
+
+## Related Commands
+
+- [Device Access](/commands/device-access) - Execute commands after file transfer
+- [Deployments](/commands/deployments) - Automated deployment workflows
+- [Docker Integration](/commands/docker-integration) - Deploy containerized applications

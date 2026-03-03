@@ -1,0 +1,501 @@
+---
+title: Deployment Commands
+description: Deploy and manage applications on remote devices using deploy, undeploy, and deployment commands
+---
+
+## Overview
+
+m87 provides powerful deployment management for running applications on remote devices. Deployments allow you to register jobs that execute automatically when devices come online, making them ideal for managing fleets of intermittently-connected edge devices.
+
+<Note>
+**Use deployments when:**
+- Your devices are not always online
+- You need to deploy to multiple devices
+- You want automated deployment workflows
+- You need to observe and monitor running services
+- You want deployment rollback capabilities
+</Note>
+
+---
+
+## Deploy Command
+
+Add a run spec (docker-compose or custom) to a deployment.
+
+### Syntax
+
+```bash
+m87 <device> deploy <FILE> [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--type <TYPE>` | Spec type: `auto`, `compose`, `runspec`, or `deployment` (default: auto) |
+| `--name <NAME>` | Optional display name for the run spec |
+| `--deployment-id <ID>` | Add to specific deployment (defaults to active deployment) |
+
+### Examples
+
+<CodeGroup>
+```bash Deploy Docker Compose
+# Auto-detect and deploy docker-compose.yml
+m87 rpi deploy ./docker-compose.yml
+
+# Explicitly specify compose type
+m87 rpi deploy ./docker-compose.yml --type compose
+
+# Deploy with custom name
+m87 rpi deploy ./docker-compose.yml --name my-web-app
+```
+
+```bash Deploy Custom Run Spec
+# Deploy custom run spec YAML
+m87 rpi deploy ./custom-spec.yml --type runspec
+
+# Deploy to specific deployment
+m87 rpi deploy ./spec.yml --deployment-id dep_123abc
+```
+
+```bash Deploy Full Deployment
+# Deploy complete deployment configuration
+m87 rpi deploy ./deployment.yml --type deployment
+```
+</CodeGroup>
+
+### How Deploy Works
+
+1. **Automatic conversion**: Docker Compose files are automatically converted to m87 run specs
+2. **Active deployment**: If no deployment ID is specified, the file is added to the active deployment
+3. **Auto-creation**: If no active deployment exists, a new one is created automatically
+4. **Execution**: The deployment runs when the device is online
+
+<Tip>
+The CLI automatically detects whether your file is a Docker Compose file or a custom run spec by looking for the `services` key in the YAML.
+</Tip>
+
+---
+
+## Undeploy Command
+
+Remove a run spec from a deployment.
+
+### Syntax
+
+```bash
+m87 <device> undeploy <JOB_ID> [OPTIONS]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--deployment-id <ID>` | Remove from specific deployment (defaults to active) |
+
+### Examples
+
+<CodeGroup>
+```bash Remove by Name
+# Remove run spec by name
+m87 rpi undeploy my-compose
+
+# Remove from specific deployment
+m87 rpi undeploy my-compose --deployment-id dep_123abc
+```
+
+```bash Remove by File Path
+# Remove using original file path
+m87 rpi undeploy ./docker-compose.yml
+```
+</CodeGroup>
+
+<Note>
+Undeploy removes the run spec from the deployment configuration but doesn't immediately stop running containers. The deployment system handles cleanup according to the spec's configuration.
+</Note>
+
+---
+
+## Deployment Subcommands
+
+Manage deployments on devices with the `deployment` subcommand group.
+
+### List Deployments
+
+View all deployments for a device.
+
+```bash
+m87 <device> deployment list
+```
+
+**Output includes:**
+- Deployment ID
+- Creation date
+- Active status
+- Number of run specs
+
+### Create New Deployment
+
+Create a new deployment.
+
+```bash
+# Create inactive deployment
+m87 <device> deployment new
+
+# Create and activate immediately
+m87 <device> deployment new --active
+```
+
+<Tip>
+Creating multiple deployments allows you to prepare different configurations and switch between them easily.
+</Tip>
+
+### Show Deployment Details
+
+View details of a deployment including all run specs.
+
+<CodeGroup>
+```bash Show Active Deployment
+# Show currently active deployment
+m87 <device> deployment show
+
+# Show as YAML
+m87 <device> deployment show --yaml
+```
+
+```bash Show Specific Deployment
+# Show specific deployment by ID
+m87 <device> deployment show --deployment-id dep_123abc
+
+# Show specific deployment as YAML
+m87 <device> deployment show --deployment-id dep_123abc --yaml
+```
+</CodeGroup>
+
+### Deployment Status
+
+Check the execution status of a deployment.
+
+<CodeGroup>
+```bash Basic Status
+# View status of active deployment
+m87 <device> deployment status
+
+# View status with logs
+m87 <device> deployment status --logs
+```
+
+```bash Specific Deployment Status
+# Check specific deployment
+m87 <device> deployment status --deployment-id dep_123abc --logs
+```
+</CodeGroup>
+
+**Status information includes:**
+- Deployment execution state
+- Run spec states (pending, running, completed, failed)
+- Health check results
+- Timestamps
+- Logs (with `--logs` flag)
+
+### Activate Deployment
+
+Set which deployment is active.
+
+```bash
+# Activate specific deployment
+m87 <device> deployment activate dep_123abc
+```
+
+<Note>
+Only one deployment can be active at a time. Activating a new deployment deactivates the previous one.
+</Note>
+
+### View Active Deployment
+
+Check which deployment is currently active.
+
+```bash
+m87 <device> deployment active
+```
+
+### Remove Deployment
+
+Delete a deployment.
+
+<CodeGroup>
+```bash Remove with Confirmation
+# Remove deployment (prompts for confirmation)
+m87 <device> deployment rm dep_123abc
+```
+
+```bash Force Remove
+# Remove without confirmation
+m87 <device> deployment rm dep_123abc --force
+```
+</CodeGroup>
+
+<Warning>
+Removing a deployment cannot be undone. Make sure you have backups if needed.
+</Warning>
+
+### Clone Deployment
+
+Duplicate an existing deployment.
+
+```bash
+# Clone deployment (inactive)
+m87 <device> deployment clone dep_123abc
+
+# Clone and activate immediately
+m87 <device> deployment clone dep_123abc --active
+```
+
+**Use cases for cloning:**
+- Create staging/production variants
+- Test configuration changes safely
+- Prepare deployment rollbacks
+
+### Update Deployment
+
+Modify an existing deployment (advanced).
+
+```bash
+m87 <device> deployment update [OPTIONS]
+```
+
+<Note>
+The update command supports advanced operations like removing, replacing, moving, and renaming run specs. See `m87 <device> deployment update --help` for detailed options.
+</Note>
+
+---
+
+## Real-World Workflows
+
+### Initial Deployment
+
+<CodeGroup>
+```bash Simple Deployment
+# 1. Deploy docker-compose file
+m87 rpi deploy ./docker-compose.yml
+
+# 2. Check status
+m87 rpi deployment status --logs
+
+# 3. Monitor execution
+m87 rpi logs -f
+```
+
+```bash Multi-Service Deployment
+# 1. Deploy web service
+m87 rpi deploy ./web/docker-compose.yml --name web
+
+# 2. Deploy API service
+m87 rpi deploy ./api/docker-compose.yml --name api
+
+# 3. Deploy database
+m87 rpi deploy ./db/docker-compose.yml --name database
+
+# 4. View complete deployment
+m87 rpi deployment show --yaml
+```
+</CodeGroup>
+
+### Update Deployment
+
+```bash
+# 1. Make changes to docker-compose.yml locally
+vim docker-compose.yml
+
+# 2. Remove old version
+m87 rpi undeploy my-app
+
+# 3. Deploy new version
+m87 rpi deploy ./docker-compose.yml --name my-app
+
+# 4. Monitor deployment
+m87 rpi deployment status --logs
+```
+
+### Staging and Production
+
+<CodeGroup>
+```bash Create Staging Environment
+# 1. Create staging deployment
+m87 rpi deployment new
+
+# 2. Deploy to staging
+m87 rpi deploy ./docker-compose.staging.yml \
+  --deployment-id <staging-id> \
+  --name staging-app
+
+# 3. Activate staging
+m87 rpi deployment activate <staging-id>
+
+# 4. Test staging
+m87 rpi deployment status --logs
+```
+
+```bash Promote to Production
+# 1. Clone staging to production
+m87 rpi deployment clone <staging-id>
+
+# 2. Update production config if needed
+m87 rpi undeploy staging-app --deployment-id <prod-id>
+m87 rpi deploy ./docker-compose.prod.yml \
+  --deployment-id <prod-id> \
+  --name prod-app
+
+# 3. Activate production
+m87 rpi deployment activate <prod-id>
+```
+</CodeGroup>
+
+### Rollback Deployment
+
+```bash
+# 1. List deployments to find previous version
+m87 rpi deployment list
+
+# 2. Activate previous deployment
+m87 rpi deployment activate <previous-deployment-id>
+
+# 3. Verify rollback
+m87 rpi deployment status --logs
+```
+
+### Fleet Deployment
+
+```bash
+# Deploy same configuration to multiple devices
+for device in rpi1 rpi2 rpi3 edge1 edge2; do
+  echo "Deploying to $device..."
+  m87 $device deploy ./docker-compose.yml --name fleet-app
+done
+
+# Check status across fleet
+for device in rpi1 rpi2 rpi3 edge1 edge2; do
+  echo "\n=== $device ==="
+  m87 $device deployment status
+done
+```
+
+---
+
+## Docker Compose Conversion
+
+When you deploy a Docker Compose file, m87 automatically converts it to a run spec.
+
+### Example Conversion
+
+**Input (docker-compose.yml):**
+```yaml
+services:
+  web:
+    image: nginx:alpine
+    container_name: web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+  
+  app:
+    build: .
+    container_name: app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+```
+
+**Deployed to device:**
+```bash
+m87 rpi deploy ./docker-compose.yml --name my-web-app
+```
+
+The CLI handles:
+- Converting compose format to m87 run spec
+- Uploading build contexts if needed
+- Configuring restart policies
+- Setting up environment variables
+- Managing container lifecycles
+
+---
+
+## Deployment vs Direct Docker Commands
+
+| Feature | Deployment | Direct Docker |
+|---------|------------|---------------|
+| **Works when offline** | ✓ Queued for execution | ✗ Requires online device |
+| **Automatic retry** | ✓ Built-in | ✗ Manual |
+| **Health monitoring** | ✓ Continuous | ✗ Manual |
+| **Rollback support** | ✓ Easy | ✗ Manual |
+| **Fleet management** | ✓ Centralized | ✗ Per-device |
+| **Immediate execution** | Depends on device | ✓ Immediate |
+| **Simple one-off tasks** | ✗ Overhead | ✓ Simple |
+
+<Tip>
+**Choose deployments for:**
+- Production applications
+- Fleet management
+- Intermittent connectivity
+- Automated workflows
+
+**Choose direct docker commands for:**
+- Development and debugging
+- One-off tasks
+- Immediate execution needs
+- Interactive work
+</Tip>
+
+---
+
+## Monitoring Deployments
+
+<CodeGroup>
+```bash Check Deployment Status
+# View current status
+m87 rpi deployment status
+
+# View with execution logs
+m87 rpi deployment status --logs
+```
+
+```bash View Container Logs
+# View logs from deployed containers
+m87 rpi logs -f
+
+# View logs with specific tail
+m87 rpi logs --tail 100
+```
+
+```bash Check Device Status
+# Overall device health
+m87 rpi status
+
+# View system metrics
+m87 rpi metrics
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<Tip>
+**Deployment best practices:**
+
+1. **Use version tags** - Tag deployments with version numbers for easy tracking
+2. **Test in staging** - Create staging deployments before production
+3. **Keep backups** - Clone deployments before making major changes
+4. **Monitor logs** - Use `--logs` flag to catch issues early
+5. **Use meaningful names** - Name run specs clearly with `--name` flag
+6. **Document configs** - Add comments to docker-compose files
+7. **Regular cleanup** - Remove old deployments you no longer need
+</Tip>
+
+---
+
+## Related Commands
+
+- [Docker Integration](/commands/docker-integration) - Direct Docker commands
+- [Device Access](/commands/device-access) - Monitor deployed applications
+- [File Transfer](/commands/file-transfer) - Deploy application files

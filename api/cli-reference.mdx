@@ -1,0 +1,1030 @@
+---
+title: CLI Reference
+description: Complete command reference for the m87 CLI
+icon: terminal
+---
+
+## Global Flags
+
+<ParamField path="-v, --verbose" type="boolean">
+  Enable verbose logging output
+</ParamField>
+
+## Top-Level Commands
+
+### Authentication
+
+#### `m87 login`
+
+Authenticate with make87 via browser-based OAuth flow.
+
+```bash
+m87 login
+```
+
+#### `m87 logout`
+
+Logout and clear local credentials.
+
+```bash
+m87 logout
+```
+
+### Device Management
+
+#### `m87 devices list`
+
+List all accessible devices.
+
+```bash
+m87 devices list
+```
+
+#### `m87 devices approve <device>`
+
+Approve a pending device registration.
+
+<ParamField path="device" type="string" required>
+  Device name or ID to approve
+</ParamField>
+
+```bash
+m87 devices approve my-device
+```
+
+#### `m87 devices reject <device>`
+
+Reject a pending device registration.
+
+<ParamField path="device" type="string" required>
+  Device name or ID to reject
+</ParamField>
+
+```bash
+m87 devices reject my-device
+```
+
+#### `m87 devices show <device>`
+
+Show detailed information about a specific device.
+
+<ParamField path="device" type="string" required>
+  Device name or ID
+</ParamField>
+
+```bash
+m87 devices show my-device
+```
+
+<Note>This command is not yet fully implemented.</Note>
+
+### File Operations
+
+#### `m87 cp <source> <dest>`
+
+Copy files between local and remote devices (SCP-style).
+
+<ParamField path="source" type="string" required>
+  Source path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+<ParamField path="dest" type="string" required>
+  Destination path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+```bash
+# Copy from device to local
+m87 cp my-device:/var/log/app.log ./app.log
+
+# Copy from local to device
+m87 cp ./config.yml my-device:/etc/app/config.yml
+```
+
+#### `m87 sync <source> <dest>`
+
+Sync files between local and remote devices (rsync-style).
+
+<ParamField path="source" type="string" required>
+  Source path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+<ParamField path="dest" type="string" required>
+  Destination path. Use `<device>:<path>` for remote, `<path>` for local.
+</ParamField>
+
+<ParamField path="--delete" type="boolean" default="false">
+  Delete files from destination that are not present in source
+</ParamField>
+
+<ParamField path="--watch" type="boolean" default="false">
+  Watch for changes and sync automatically
+</ParamField>
+
+<ParamField path="-n, --dry-run" type="boolean" default="false">
+  Show what would be done without making changes
+</ParamField>
+
+<ParamField path="-e, --exclude" type="string[]">
+  Exclude files matching pattern (can be used multiple times)
+</ParamField>
+
+```bash
+# Sync directory to device
+m87 sync ./src my-device:/app/src
+
+# Sync with delete flag
+m87 sync --delete ./src my-device:/app/src
+
+# Watch mode with exclusions
+m87 sync --watch --exclude "*.log" --exclude "node_modules" ./src my-device:/app/src
+```
+
+#### `m87 ls <path>`
+
+List files on a device.
+
+<ParamField path="path" type="string" required>
+  Remote path in format `<device>:<path>`
+</ParamField>
+
+```bash
+m87 ls my-device:/var/log
+```
+
+### Utility Commands
+
+#### `m87 version`
+
+Show CLI version information including build details and platform.
+
+```bash
+m87 version
+```
+
+#### `m87 update`
+
+Update the CLI to the latest version.
+
+```bash
+m87 update
+```
+
+### Configuration
+
+#### `m87 config set`
+
+Set configuration values.
+
+<ParamField path="--runtime-server-url" type="string">
+  Override API URL (e.g., https://eu.public.make87.dev)
+</ParamField>
+
+<ParamField path="--owner-reference" type="string">
+  Set owner reference (email or org ID)
+</ParamField>
+
+<ParamField path="--make87-api-url" type="string">
+  Set make87 API URL
+</ParamField>
+
+<ParamField path="--make87-app-url" type="string">
+  Set make87 app URL
+</ParamField>
+
+<ParamField path="--trust-invalid-server-cert" type="boolean">
+  Trust invalid server certificates (use with caution)
+</ParamField>
+
+```bash
+m87 config set --runtime-server-url https://eu.public.make87.dev
+m87 config set --owner-reference myorg
+```
+
+#### `m87 config show`
+
+Display current configuration.
+
+```bash
+m87 config show
+```
+
+#### `m87 config file`
+
+Show path to configuration file.
+
+```bash
+m87 config file
+```
+
+### SSH Commands
+
+#### `m87 ssh enable`
+
+Enable SSH host resolution for `.m87` domains.
+
+```bash
+m87 ssh enable
+```
+
+After enabling, you can use standard SSH:
+
+```bash
+ssh my-device.m87
+```
+
+#### `m87 ssh disable`
+
+Disable SSH host resolution.
+
+```bash
+m87 ssh disable
+```
+
+### MCP Server
+
+#### `m87 mcp`
+
+Start MCP server (Model Context Protocol) for AI agent integration. The server runs on stdin/stdout and exposes m87 platform commands as MCP tools.
+
+```bash
+m87 mcp
+```
+
+See [MCP Overview](/api/mcp-overview) for configuration details.
+
+## Device Commands
+
+Device commands follow the pattern `m87 <device> <command>`. These commands operate on a specific device.
+
+### `m87 <device> shell`
+
+Open an interactive shell on the device.
+
+```bash
+m87 my-device shell
+```
+
+### `m87 <device> exec`
+
+Execute a command on the device.
+
+<ParamField path="-i, --stdin" type="boolean" default="false">
+  Keep stdin open (for responding to prompts)
+</ParamField>
+
+<ParamField path="-t, --tty" type="boolean" default="false">
+  Allocate a pseudo-TTY (for TUI apps like vim, htop)
+</ParamField>
+
+<ParamField path="command" type="string[]" required>
+  Command and arguments to execute (use `--` before command)
+</ParamField>
+
+```bash
+# Simple command
+m87 my-device exec -- ls -la
+
+# Interactive command
+m87 my-device exec -it -- vim config.yml
+
+# Command with pipes
+m87 my-device exec -- "ps aux | grep nginx"
+```
+
+### `m87 <device> forward`
+
+Forward remote port(s) to localhost.
+
+<ParamField path="targets" type="string[]" required>
+  Port forwarding specifications. Supports:
+  - Single port: `8080`
+  - Port mapping: `3000:8080` (local:remote)
+  - Port range: `8080-8090`
+  - Range mapping: `8080-8090:9080-9090`
+  - With host: `8080:192.168.1.50:9080`
+  - With protocol: `8080/udp` (default: tcp)
+</ParamField>
+
+```bash
+# Forward single port
+m87 my-device forward 8080
+
+# Forward to different local port
+m87 my-device forward 3000:8080
+
+# Forward multiple ports
+m87 my-device forward 8080 9090 3000
+
+# Forward port range
+m87 my-device forward 8080-8090
+
+# Forward to specific host on device network
+m87 my-device forward 8080:192.168.1.50:9080
+
+# UDP forwarding
+m87 my-device forward 8080/udp
+```
+
+### `m87 <device> docker`
+
+Run docker commands on the device.
+
+<ParamField path="args" type="string[]" required>
+  Docker CLI arguments (passed through to docker command)
+</ParamField>
+
+```bash
+# List containers
+m87 my-device docker ps
+
+# List all containers
+m87 my-device docker ps -a
+
+# Run a container
+m87 my-device docker run -d nginx
+
+# Execute in container
+m87 my-device docker exec -it my-container bash
+
+# View logs
+m87 my-device docker logs my-container
+```
+
+### `m87 <device> logs`
+
+Stream container logs from the device.
+
+<ParamField path="-f, --follow" type="boolean" default="false">
+  Follow log output
+</ParamField>
+
+<ParamField path="--tail" type="number" default="100">
+  Number of lines to show from end of logs
+</ParamField>
+
+```bash
+# View last 100 lines
+m87 my-device logs
+
+# Follow logs
+m87 my-device logs -f
+
+# Show last 50 lines
+m87 my-device logs --tail 50
+```
+
+### `m87 <device> metrics`
+
+Show device system metrics (CPU, memory, disk, network).
+
+```bash
+m87 my-device metrics
+```
+
+Alias: `m87 <device> stats`
+
+### `m87 <device> status`
+
+Show device status including health, crashes, and incidents.
+
+```bash
+m87 my-device status
+```
+
+### `m87 <device> audit`
+
+View audit logs showing who interacted with the device.
+
+<ParamField path="--until" type="string">
+  End time in RFC 3339 format (e.g., 2026-01-31 or 2026-01-31T13:00:00)
+</ParamField>
+
+<ParamField path="--since" type="string">
+  Start time in RFC 3339 format
+</ParamField>
+
+<ParamField path="--max" type="number" default="100">
+  Maximum number of log entries
+</ParamField>
+
+<ParamField path="--details" type="boolean" default="false">
+  Show detailed audit information
+</ParamField>
+
+```bash
+# Recent audit logs
+m87 my-device audit
+
+# Last 50 entries with details
+m87 my-device audit --max 50 --details
+
+# Time range query
+m87 my-device audit --since 2026-01-01 --until 2026-01-31
+```
+
+### `m87 <device> serial`
+
+Connect to a serial device.
+
+<ParamField path="path" type="string" required>
+  Path to serial device (e.g., /dev/ttyUSB0)
+</ParamField>
+
+<ParamField path="baud" type="number" default="115200">
+  Baud rate for serial connection
+</ParamField>
+
+```bash
+# Connect with default baud rate
+m87 my-device serial /dev/ttyUSB0
+
+# Connect with custom baud rate
+m87 my-device serial /dev/ttyUSB0 9600
+```
+
+## Deployment Commands
+
+Deployment commands manage asynchronous job execution on devices.
+
+### `m87 <device> deploy`
+
+Add a run spec to a deployment.
+
+<ParamField path="file" type="string" required>
+  Path to deployment file (docker-compose.yml or run spec YAML)
+</ParamField>
+
+<ParamField path="--type" type="enum" default="auto">
+  Spec type: `auto`, `compose`, `runspec`, `deployment`
+</ParamField>
+
+<ParamField path="--name" type="string">
+  Optional display name for the run spec
+</ParamField>
+
+<ParamField path="--deployment-id" type="string">
+  Add to a specific deployment (otherwise uses active deployment)
+</ParamField>
+
+```bash
+# Deploy docker-compose file
+m87 my-device deploy ./docker-compose.yml
+
+# Deploy with custom name
+m87 my-device deploy ./my-app.yml --name "production-app"
+
+# Deploy to specific deployment
+m87 my-device deploy ./app.yml --deployment-id dep-123
+
+# Force spec type
+m87 my-device deploy ./custom.yml --type runspec
+```
+
+### `m87 <device> undeploy`
+
+Remove a run spec from a deployment.
+
+<ParamField path="job_id" type="string" required>
+  Job ID or name to remove
+</ParamField>
+
+<ParamField path="--deployment-id" type="string">
+  Remove from specific deployment (otherwise uses active deployment)
+</ParamField>
+
+```bash
+m87 my-device undeploy my-app
+m87 my-device undeploy my-app --deployment-id dep-123
+```
+
+### `m87 <device> deployment list`
+
+List all deployments for the device.
+
+```bash
+m87 my-device deployment list
+```
+
+### `m87 <device> deployment new`
+
+Create a new deployment.
+
+<ParamField path="--active" type="boolean" default="false">
+  Make this deployment active immediately
+</ParamField>
+
+```bash
+# Create inactive deployment
+m87 my-device deployment new
+
+# Create and activate
+m87 my-device deployment new --active
+```
+
+### `m87 <device> deployment show`
+
+Show deployment details including run specs.
+
+<ParamField path="--deployment-id" type="string">
+  Specific deployment to show (defaults to active deployment)
+</ParamField>
+
+<ParamField path="--yaml" type="boolean" default="false">
+  Output as YAML instead of formatted display
+</ParamField>
+
+```bash
+# Show active deployment
+m87 my-device deployment show
+
+# Show specific deployment
+m87 my-device deployment show --deployment-id dep-123
+
+# Show as YAML
+m87 my-device deployment show --yaml
+```
+
+### `m87 <device> deployment status`
+
+Get deployment execution status.
+
+<ParamField path="--deployment-id" type="string">
+  Specific deployment (defaults to active deployment)
+</ParamField>
+
+<ParamField path="--logs" type="boolean" default="false">
+  Show logs from deployment steps
+</ParamField>
+
+```bash
+# Status of active deployment
+m87 my-device deployment status
+
+# Status with logs
+m87 my-device deployment status --logs
+
+# Status of specific deployment
+m87 my-device deployment status --deployment-id dep-123
+```
+
+### `m87 <device> deployment active`
+
+Print the currently active deployment ID.
+
+```bash
+m87 my-device deployment active
+```
+
+### `m87 <device> deployment activate`
+
+Set the active deployment.
+
+<ParamField path="deployment_id" type="string" required>
+  Deployment ID to activate
+</ParamField>
+
+```bash
+m87 my-device deployment activate dep-123
+```
+
+### `m87 <device> deployment rm`
+
+Remove a deployment.
+
+<ParamField path="deployment_id" type="string" required>
+  Deployment ID to remove
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Skip confirmation prompt
+</ParamField>
+
+```bash
+m87 my-device deployment rm dep-123
+m87 my-device deployment rm dep-123 --force
+```
+
+### `m87 <device> deployment clone`
+
+Clone an existing deployment into a new one.
+
+<ParamField path="deployment_id" type="string" required>
+  Source deployment ID to clone
+</ParamField>
+
+<ParamField path="--active" type="boolean" default="false">
+  Make the cloned deployment active immediately
+</ParamField>
+
+```bash
+m87 my-device deployment clone dep-123
+m87 my-device deployment clone dep-123 --active
+```
+
+### `m87 <device> deployment update`
+
+Update a deployment (remove/replace/rename specs).
+
+<ParamField path="--deployment-id" type="string">
+  Deployment to update (defaults to active)
+</ParamField>
+
+<ParamField path="--rm" type="string[]">
+  Remove job(s) by ID (can be used multiple times)
+</ParamField>
+
+<ParamField path="--replace" type="string[]">
+  Replace job: `<job_id>=<file>` (can be used multiple times)
+</ParamField>
+
+<ParamField path="--rename" type="string[]">
+  Rename job: `<job_id>=<new_name>` (can be used multiple times)
+</ParamField>
+
+<ParamField path="--enable" type="string[]">
+  Enable job(s) by ID (can be used multiple times)
+</ParamField>
+
+<ParamField path="--disable" type="string[]">
+  Disable job(s) by ID (can be used multiple times)
+</ParamField>
+
+<ParamField path="--type" type="enum" default="auto">
+  Spec type for replacements: `auto`, `compose`, `runspec`
+</ParamField>
+
+```bash
+# Remove a job
+m87 my-device deployment update --rm old-app
+
+# Replace a job
+m87 my-device deployment update --replace my-app=./new-version.yml
+
+# Rename a job
+m87 my-device deployment update --rename my-app=production-app
+
+# Enable/disable jobs
+m87 my-device deployment update --enable app1 --disable app2
+
+# Combine operations
+m87 my-device deployment update --rm old-app --replace app=./new.yml --enable new-app
+```
+
+## Device Access Control
+
+### `m87 <device> access list`
+
+List users with access to the device.
+
+```bash
+m87 my-device access list
+```
+
+### `m87 <device> access add`
+
+Grant access to a user or organization.
+
+<ParamField path="email_or_org_id" type="string" required>
+  Email address or organization ID
+</ParamField>
+
+<ParamField path="role" type="enum" required>
+  Role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+```bash
+m87 my-device access add user@example.com editor
+m87 my-device access add my-org admin
+```
+
+### `m87 <device> access remove`
+
+Revoke access from a user or organization.
+
+<ParamField path="email_or_org_id" type="string" required>
+  Email address or organization ID
+</ParamField>
+
+```bash
+m87 my-device access remove user@example.com
+```
+
+### `m87 <device> access update`
+
+Update user or organization role.
+
+<ParamField path="email_or_org_id" type="string" required>
+  Email address or organization ID
+</ParamField>
+
+<ParamField path="role" type="enum" required>
+  New role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+```bash
+m87 my-device access update user@example.com admin
+```
+
+## Organization Commands
+
+### `m87 org list`
+
+List all organizations.
+
+```bash
+m87 org list
+```
+
+### `m87 org create`
+
+Create a new organization.
+
+<ParamField path="id" type="string" required>
+  Organization ID
+</ParamField>
+
+<ParamField path="owner_email" type="string" required>
+  Email of organization owner
+</ParamField>
+
+```bash
+m87 org create my-org owner@example.com
+```
+
+### `m87 org delete`
+
+Delete an organization.
+
+<ParamField path="id" type="string" required>
+  Organization ID to delete
+</ParamField>
+
+```bash
+m87 org delete my-org
+```
+
+### `m87 org update`
+
+Update organization ID.
+
+<ParamField path="id" type="string" required>
+  Current organization ID
+</ParamField>
+
+<ParamField path="new_id" type="string" required>
+  New organization ID
+</ParamField>
+
+```bash
+m87 org update my-org new-org-name
+```
+
+### Organization Members
+
+#### `m87 org members list`
+
+List organization members.
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org members list
+m87 org members list --org-id my-org
+```
+
+#### `m87 org members add`
+
+Add a member to the organization.
+
+<ParamField path="email" type="string" required>
+  Member email address
+</ParamField>
+
+<ParamField path="role" type="enum" required>
+  Role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org members add user@example.com editor
+m87 org members add admin@example.com admin --org-id my-org
+```
+
+#### `m87 org members update`
+
+Update a member's role.
+
+<ParamField path="email" type="string" required>
+  Member email address
+</ParamField>
+
+<ParamField path="role" type="enum" required>
+  New role: `admin`, `editor`, or `viewer`
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org members update user@example.com admin
+```
+
+#### `m87 org members remove`
+
+Remove a member from the organization.
+
+<ParamField path="email" type="string" required>
+  Member email address
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org members remove user@example.com
+```
+
+### Organization Devices
+
+#### `m87 org devices list`
+
+List devices owned by the organization.
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org devices list
+m87 org devices list --org-id my-org
+```
+
+#### `m87 org devices add`
+
+Add a device to the organization.
+
+<ParamField path="device_name" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org devices add my-device
+m87 org devices add my-device --org-id my-org
+```
+
+#### `m87 org devices remove`
+
+Remove a device from the organization.
+
+<ParamField path="device_name" type="string" required>
+  Device name or ID
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID (auto-resolved if omitted)
+</ParamField>
+
+```bash
+m87 org devices remove my-device
+m87 org devices remove my-device --org-id my-org
+```
+
+## Runtime Commands (Linux Only)
+
+These commands manage the m87 runtime service on Linux devices. Most require root privileges and automatically invoke `sudo`.
+
+### `m87 runtime login`
+
+Register this device as a runtime (headless flow, requires approval).
+
+<ParamField path="--org-id" type="string">
+  Organization ID to register runtime under (mutually exclusive with --email)
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Email address to register runtime under (mutually exclusive with --org-id)
+</ParamField>
+
+```bash
+m87 runtime login --email you@example.com
+m87 runtime login --org-id my-org
+```
+
+After registration, approve from your workstation with `m87 devices approve <device>`.
+
+### `m87 runtime logout`
+
+Logout and deauthenticate the runtime.
+
+```bash
+m87 runtime logout
+```
+
+### `m87 runtime run`
+
+Run the runtime daemon (blocking, used by systemd service).
+
+<ParamField path="--org-id" type="string">
+  Organization ID to register runtime under
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Email address to register runtime under
+</ParamField>
+
+```bash
+m87 runtime run --email you@example.com
+```
+
+### `m87 runtime start`
+
+Start the runtime service now.
+
+<ParamField path="--org-id" type="string">
+  Organization ID to register runtime under
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Email address to register runtime under
+</ParamField>
+
+```bash
+sudo m87 runtime start
+```
+
+### `m87 runtime stop`
+
+Stop the runtime service now.
+
+```bash
+sudo m87 runtime stop
+```
+
+### `m87 runtime restart`
+
+Restart the runtime service.
+
+<ParamField path="--org-id" type="string">
+  Organization ID to register runtime under
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Email address to register runtime under
+</ParamField>
+
+```bash
+sudo m87 runtime restart
+```
+
+### `m87 runtime enable`
+
+Configure service to auto-start on boot.
+
+<ParamField path="--now" type="boolean" default="false">
+  Enable AND start service immediately
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization ID to register runtime under
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Email address to register runtime under
+</ParamField>
+
+```bash
+sudo m87 runtime enable
+sudo m87 runtime enable --now
+```
+
+### `m87 runtime disable`
+
+Remove auto-start on boot.
+
+<ParamField path="--now" type="boolean" default="false">
+  Disable AND stop service immediately
+</ParamField>
+
+```bash
+sudo m87 runtime disable
+sudo m87 runtime disable --now
+```
+
+### `m87 runtime status`
+
+Show local runtime service status.
+
+```bash
+m87 runtime status
+```

@@ -1,0 +1,372 @@
+---
+title: Port Forwarding Commands
+description: Forward ports and serial devices from remote machines using forward and serial commands
+---
+
+## Overview
+
+m87 port forwarding allows you to securely access services running on remote devices or devices on remote networks as if they were running locally. All traffic is encrypted through the m87 secure tunnel.
+
+---
+
+## Forward Command
+
+Forward ports from remote devices or remote network devices to your local machine.
+
+### Syntax
+
+```bash
+m87 <device> forward <TARGETS>...
+```
+
+Each target follows the format: `[local_port:]remote_target[/protocol]`
+
+Where:
+- `remote_target` is `[host:]port`
+- `protocol` is `tcp` (default) or `udp`
+
+### Port Forwarding Formats
+
+| Format | Description | Example |
+|--------|-------------|----------|
+| `port` | Forward remote port to same local port | `8080` |
+| `local:remote` | Forward remote port to different local port | `3000:8080` |
+| `host:port` | Forward from device on remote network | `192.168.1.50:554` |
+| `local:host:remote` | Map remote network device to local port | `8554:192.168.1.50:554` |
+| `port/protocol` | Specify protocol (tcp or udp) | `8080/udp` |
+
+### Basic Examples
+
+<CodeGroup>
+```bash Same Port Forwarding
+# Forward remote port 8080 to local port 8080
+m87 rpi forward 8080
+
+# Access at http://localhost:8080
+```
+
+```bash Different Port Mapping
+# Forward remote port 8080 to local port 3000
+m87 rpi forward 3000:8080
+
+# Access at http://localhost:3000
+```
+
+```bash Explicit TCP
+# TCP is the default protocol
+m87 rpi forward 8080/tcp
+```
+
+```bash UDP Forwarding
+# Forward UDP traffic (e.g., DNS)
+m87 rpi forward 53/udp
+```
+</CodeGroup>
+
+---
+
+## Network Device Forwarding
+
+Access devices on the remote device's network, not just services running on the device itself.
+
+### Use Cases
+
+- Access IP cameras on remote LANs
+- Connect to routers and switches through a jump host
+- Reach internal network services
+- Access IoT devices without public IPs
+
+### Examples
+
+<CodeGroup>
+```bash IP Camera Access
+# Forward port 554 from IP camera at 192.168.1.50
+m87 rpi forward 192.168.1.50:554
+
+# Or expose locally on different port
+m87 rpi forward 8554:192.168.1.50:554
+
+# View RTSP stream locally
+ffplay rtsp://localhost:8554/stream
+vlc rtsp://localhost:8554/stream
+```
+
+```bash Router Admin Panel
+# Router at 192.168.1.1 only accessible from office network
+m87 office-pc forward 8080:192.168.1.1:80
+
+# Open http://localhost:8080 in browser
+```
+
+```bash Internal Database
+# Access database on internal network
+m87 gateway forward 5432:10.0.1.100:5432
+
+# Connect to PostgreSQL
+psql -h localhost -p 5432 -U myuser mydb
+```
+</CodeGroup>
+
+---
+
+## Multiple Port Forwarding
+
+Forward multiple ports with a single command.
+
+### Examples
+
+<CodeGroup>
+```bash Same Ports
+# Forward multiple ports (same local and remote)
+m87 device forward 8080 9090 3000
+```
+
+```bash Mixed Port Mapping
+# Forward web UI and API with different local ports
+m87 device forward 3000:3000 8080:8000
+
+# Access frontend at http://localhost:3000
+# Access API at http://localhost:8080
+```
+
+```bash Full Stack Application
+# Forward frontend, backend, and database
+m87 app-server forward 3000 8000 5432
+```
+</CodeGroup>
+
+---
+
+## Port Ranges
+
+Forward ranges of ports efficiently.
+
+### Syntax
+
+```
+start-end                      Forward port range (same local/remote)
+start-end:start-end            Map local range to different remote range
+start-end:host:start-end       Range with specific remote host
+```
+
+### Examples
+
+```bash
+# Forward ports 8080-8090 (same local and remote)
+m87 device forward 8080-8090
+
+# Map local range to different remote range
+m87 device forward 8080-8090:9080-9090
+
+# Forward range from network device
+m87 device forward 8080-8090:192.168.1.50:9080-9090/tcp
+```
+
+<Note>
+Port ranges are particularly useful for applications that use multiple consecutive ports, such as media servers or game servers.
+</Note>
+
+---
+
+## Real-World Examples
+
+### Web Development
+
+<CodeGroup>
+```bash Development Server
+# Remote Node.js app on port 3000
+m87 dev-server forward 3000
+
+# Access at http://localhost:3000
+curl http://localhost:3000
+```
+
+```bash Web UI and API
+# Forward both frontend and backend
+m87 rpi forward 8080:80 3000:3000
+
+# Frontend at http://localhost:8080
+# API at http://localhost:3000
+```
+</CodeGroup>
+
+### Database Access
+
+<CodeGroup>
+```bash PostgreSQL
+# Forward PostgreSQL port
+m87 db-server forward 5432
+
+# Connect with psql
+psql -h localhost -p 5432 -U myuser mydb
+```
+
+```bash MongoDB
+# Forward MongoDB with different local port
+m87 db-server forward 27018:27017
+
+# Connect with mongo client
+mongo --host localhost --port 27018
+```
+
+```bash Redis
+# Forward Redis
+m87 cache-server forward 6379
+
+# Connect with redis-cli
+redis-cli -h localhost -p 6379
+```
+</CodeGroup>
+
+### IoT and Smart Home
+
+<CodeGroup>
+```bash Home Assistant
+# Access Home Assistant on remote Raspberry Pi
+m87 rpi forward 8123
+
+# Open http://localhost:8123 in browser
+```
+
+```bash MQTT Broker
+# Forward MQTT broker
+m87 iot-gateway forward 1883
+
+# Publish message
+mosquitto_pub -h localhost -p 1883 -t test/topic -m "hello"
+```
+</CodeGroup>
+
+### Media Streaming
+
+```bash
+# Forward RTSP stream from camera
+m87 rpi forward 8554:192.168.1.50:554
+
+# Stream with VLC
+vlc rtsp://localhost:8554/stream
+
+# Stream with ffmpeg
+ffplay rtsp://localhost:8554/stream
+```
+
+### SSH Tunneling
+
+```bash
+# Forward SSH from another device on remote network
+m87 gateway forward 2222:10.0.1.100:22
+
+# SSH to internal device through tunnel
+ssh -p 2222 user@localhost
+```
+
+---
+
+## Serial Command
+
+Connect to serial devices (USB, UART) on remote machines.
+
+### Syntax
+
+```bash
+m87 <device> serial <PATH> [BAUD]
+```
+
+### Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `PATH` | Yes | - | Path to serial device (e.g., `/dev/ttyUSB0`) |
+| `BAUD` | No | 115200 | Baud rate for serial connection |
+
+### Examples
+
+<CodeGroup>
+```bash Default Baud Rate
+# Connect to USB serial device (115200 baud)
+m87 rpi serial /dev/ttyUSB0
+```
+
+```bash Custom Baud Rate
+# Connect with 9600 baud
+m87 rpi serial /dev/ttyUSB0 9600
+
+# Connect with 57600 baud
+m87 rpi serial /dev/ttyACM0 57600
+```
+</CodeGroup>
+
+### Common Serial Devices
+
+| Device Path | Description |
+|-------------|-------------|
+| `/dev/ttyUSB0` | USB-to-serial adapter |
+| `/dev/ttyACM0` | Arduino, USB CDC devices |
+| `/dev/ttyAMA0` | Raspberry Pi UART (GPIO pins) |
+| `/dev/ttyS0` | Built-in serial port |
+
+### Use Cases
+
+- **Arduino development** - Flash and debug Arduino boards
+- **Router/switch configuration** - Access console ports
+- **Embedded systems** - Debug embedded Linux devices
+- **Industrial equipment** - Monitor and control serial devices
+- **IoT devices** - Configure ESP32, ESP8266, and similar devices
+
+### Serial Examples
+
+<CodeGroup>
+```bash Arduino Debugging
+# Connect to Arduino on remote Pi
+m87 rpi serial /dev/ttyACM0
+
+# You can now use Arduino Serial Monitor output
+```
+
+```bash Network Switch Configuration
+# Access switch console through remote device
+m87 admin-pc serial /dev/ttyUSB0 9600
+
+# Configure switch via console
+```
+
+```bash ESP32 Development
+# Connect to ESP32 for debugging
+m87 dev-board serial /dev/ttyUSB0 115200
+
+# View ESP32 serial output
+```
+</CodeGroup>
+
+<Tip>
+Use `m87 <device> exec -- ls /dev/tty*` to list available serial devices on the remote machine.
+</Tip>
+
+---
+
+## Security Features
+
+<Note>
+**All forwarding is secure by default:**
+
+- All traffic is encrypted through the m87 secure tunnel
+- No need to expose ports publicly or configure firewalls
+- Authentication handled automatically by m87
+- End-to-end encryption for all forwarded connections
+</Note>
+
+---
+
+## Connection Behavior
+
+- Forwarding runs in the foreground
+- Press `Ctrl+C` to stop forwarding
+- Connection automatically reconnects if network drops
+- Local ports are released when forwarding stops
+
+---
+
+## Related Commands
+
+- [Device Access](/commands/device-access) - Execute commands on remote devices
+- [Docker Integration](/commands/docker-integration) - Forward ports from containers

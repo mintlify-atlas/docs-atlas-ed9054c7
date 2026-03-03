@@ -1,0 +1,371 @@
+---
+title: 'Updating m87'
+description: 'Keep your m87 CLI and runtime up to date'
+---
+
+Keeping m87 updated ensures you have the latest features, bug fixes, and security improvements.
+
+## Update Command
+
+The easiest way to update m87 is using the built-in update command:
+
+```bash
+m87 update
+```
+
+This downloads and installs the latest m87 binary to the same location as your current installation.
+
+<Note>
+  The update command works for installations in standard locations like `~/.local/bin` or `/usr/local/bin`. For custom installations, you may need to update manually.
+</Note>
+
+## Updating the CLI
+
+<Steps>
+  <Step title="Check current version">
+    First, check which version you're currently running:
+    ```bash
+    m87 --version
+    ```
+  </Step>
+
+  <Step title="Run update">
+    Update to the latest version:
+    ```bash
+    m87 update
+    ```
+
+    The command will:
+    - Check for the latest release
+    - Download the appropriate binary for your platform
+    - Replace your current m87 binary
+    - Preserve file permissions
+  </Step>
+
+  <Step title="Verify update">
+    Confirm the new version is installed:
+    ```bash
+    m87 --version
+    ```
+  </Step>
+</Steps>
+
+## Updating the Runtime
+
+After updating the m87 CLI, you should also update the runtime on your edge devices.
+
+### Update Local Runtime
+
+If you're updating the runtime on the same machine where you updated the CLI:
+
+```bash
+m87 runtime restart
+```
+
+This restarts the runtime service with the new binary.
+
+<Warning>
+  Restarting the runtime will briefly disconnect any active sessions to the device.
+</Warning>
+
+### Update Remote Device Runtime
+
+To update the runtime on a remote device:
+
+<Steps>
+  <Step title="Update the binary">
+    Execute the update command on the remote device:
+    ```bash
+    m87 <device> exec -it -- 'm87 update'
+    ```
+  </Step>
+
+  <Step title="Restart the runtime">
+    Restart the runtime to use the new binary:
+    ```bash
+    m87 <device> exec -it -- 'm87 runtime restart'
+    ```
+  </Step>
+
+  <Step title="Verify the update">
+    Check the runtime is running with the new version:
+    ```bash
+    m87 <device> exec -- 'm87 --version'
+    ```
+  </Step>
+</Steps>
+
+### Combined Update Command
+
+You can combine both steps into a single command:
+
+```bash
+m87 <device> exec -it -- 'm87 update && m87 runtime restart'
+```
+
+## Update Multiple Devices
+
+To update multiple devices at once, use a shell loop:
+
+```bash
+for device in device1 device2 device3; do
+  echo "Updating $device..."
+  m87 $device exec -it -- 'm87 update && m87 runtime restart'
+done
+```
+
+Or list all devices and update them:
+
+```bash
+m87 devices list --format json | jq -r '.[] | .name' | while read device; do
+  echo "Updating $device..."
+  m87 $device exec -it -- 'm87 update && m87 runtime restart' || echo "Failed to update $device"
+done
+```
+
+## Manual Update Methods
+
+### Update via Installation Script
+
+Re-run the installation script to get the latest version:
+
+```bash
+curl -fsSL https://get.make87.com | sh
+```
+
+This will download and install the latest release to `~/.local/bin/m87`.
+
+### Update from GitHub Releases
+
+<Steps>
+  <Step title="Download the latest release">
+    Visit the [releases page](https://github.com/make87/m87/releases) and download the appropriate binary for your platform:
+
+    **Linux (amd64):**
+    ```bash
+    wget https://github.com/make87/m87/releases/latest/download/m87-linux-amd64
+    ```
+
+    **Linux (arm64):**
+    ```bash
+    wget https://github.com/make87/m87/releases/latest/download/m87-linux-arm64
+    ```
+
+    **macOS (amd64):**
+    ```bash
+    wget https://github.com/make87/m87/releases/latest/download/m87-darwin-amd64
+    ```
+
+    **macOS (arm64):**
+    ```bash
+    wget https://github.com/make87/m87/releases/latest/download/m87-darwin-arm64
+    ```
+  </Step>
+
+  <Step title="Make it executable">
+    ```bash
+    chmod +x m87-*
+    ```
+  </Step>
+
+  <Step title="Replace existing binary">
+    ```bash
+    # Find current location
+    which m87
+
+    # Replace it (example for ~/.local/bin)
+    mv m87-linux-amd64 ~/.local/bin/m87
+    ```
+  </Step>
+</Steps>
+
+### Update from Source
+
+If you built m87 from source, update by pulling the latest code and rebuilding:
+
+```bash
+cd /path/to/m87
+git pull origin main
+cargo build --release
+cp target/release/m87 ~/.local/bin/
+```
+
+See [Building from Source](/advanced/building-from-source) for detailed build instructions.
+
+## Docker-Based Installation
+
+If you're running m87 via Docker:
+
+<Steps>
+  <Step title="Pull the latest image">
+    ```bash
+    cd /path/to/m87-repo
+    git pull origin main
+    docker build -f m87-client/Dockerfile -t m87 .
+    ```
+  </Step>
+
+  <Step title="Verify the update">
+    ```bash
+    docker run --rm m87 --version
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Your alias remains the same, so no additional configuration is needed.
+</Note>
+
+## Update Strategies
+
+### Scheduled Updates
+
+For production deployments, consider scheduling updates during maintenance windows:
+
+```bash
+# Cron job to update at 3 AM every Sunday
+0 3 * * 0 /home/user/.local/bin/m87 update && /home/user/.local/bin/m87 runtime restart
+```
+
+### Staged Rollout
+
+For large fleets, update a small subset first:
+
+<Steps>
+  <Step title="Test on staging devices">
+    ```bash
+    m87 staging-device exec -it -- 'm87 update && m87 runtime restart'
+    ```
+  </Step>
+
+  <Step title="Monitor for issues">
+    ```bash
+    m87 staging-device status
+    m87 staging-device logs
+    ```
+  </Step>
+
+  <Step title="Roll out to production">
+    Once verified, update production devices in batches.
+  </Step>
+</Steps>
+
+## Version Compatibility
+
+### CLI and Runtime Versions
+
+The m87 CLI and runtime are designed to be compatible across versions, but it's recommended to keep them in sync:
+
+- **Recommended:** CLI and runtime on the same version
+- **Supported:** CLI up to 2 minor versions ahead of runtime
+- **Not recommended:** Runtime newer than CLI
+
+### Checking Versions
+
+**Local CLI version:**
+```bash
+m87 --version
+```
+
+**Remote runtime version:**
+```bash
+m87 <device> exec -- 'm87 --version'
+```
+
+## Rollback
+
+If an update causes issues, you can rollback to a previous version:
+
+<Steps>
+  <Step title="Download previous release">
+    Visit [releases page](https://github.com/make87/m87/releases) and download a specific version:
+    ```bash
+    wget https://github.com/make87/m87/releases/download/v0.x.x/m87-linux-amd64
+    ```
+  </Step>
+
+  <Step title="Replace the binary">
+    ```bash
+    chmod +x m87-linux-amd64
+    mv m87-linux-amd64 ~/.local/bin/m87
+    ```
+  </Step>
+
+  <Step title="Restart runtime if needed">
+    ```bash
+    m87 runtime restart
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting Updates
+
+<AccordionGroup>
+  <Accordion title="Update command fails">
+    **Problem:** `m87 update` returns an error.
+
+    **Solutions:**
+    - Check network connectivity: `curl -I https://github.com`
+    - Verify write permissions to the installation directory
+    - Try manual update from GitHub releases
+    - Check disk space: `df -h`
+  </Accordion>
+
+  <Accordion title="Runtime won't restart after update">
+    **Problem:** Runtime fails to start after updating.
+
+    **Solutions:**
+    ```bash
+    # Check runtime status
+    m87 runtime status
+
+    # View logs
+    journalctl --user -u m87-runtime -n 50
+
+    # Try manual restart
+    m87 runtime stop
+    m87 runtime start
+    ```
+
+    If issues persist, see [Troubleshooting](/advanced/troubleshooting) guide.
+  </Accordion>
+
+  <Accordion title="Version shows as old after update">
+    **Problem:** `m87 --version` still shows old version.
+
+    **Possible causes:**
+    - Multiple m87 binaries in PATH
+    - Shell cached the old binary location
+
+    **Solutions:**
+    ```bash
+    # Clear shell hash
+    hash -r
+
+    # Find all m87 binaries
+    which -a m87
+
+    # Use full path
+    ~/.local/bin/m87 --version
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Release Notifications
+
+To stay informed about new releases:
+
+1. **Watch the GitHub repository:**  
+   Visit [github.com/make87/m87](https://github.com/make87/m87) and click "Watch" → "Custom" → "Releases"
+
+2. **Check for updates periodically:**
+   ```bash
+   m87 update --check
+   ```
+
+3. **Subscribe to release RSS:**  
+   `https://github.com/make87/m87/releases.atom`
+
+<Note>
+  Major version updates may include breaking changes. Always review the release notes before updating production systems.
+</Note>

@@ -1,0 +1,385 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and solutions for m87 CLI and runtime'
+---
+
+This guide covers common issues you may encounter when using m87 and their solutions.
+
+## Authentication Issues
+
+<AccordionGroup>
+  <Accordion title="Browser doesn't open during login">
+    **Problem:** Running `m87 login` doesn't open a browser window.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check if browser is available">
+        Ensure you have a default browser configured on your system.
+      </Step>
+      <Step title="Manual authentication">
+        If the browser doesn't open automatically, copy the URL from the terminal and paste it into your browser manually.
+      </Step>
+      <Step title="Environment variables">
+        Check if `BROWSER` environment variable is set correctly:
+        ```bash
+        echo $BROWSER
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Authentication token expired">
+    **Problem:** Commands fail with authentication errors.
+
+    **Solution:**
+    ```bash
+    m87 logout
+    m87 login
+    ```
+
+    This clears expired credentials and re-authenticates with the platform.
+  </Accordion>
+
+  <Accordion title="Credentials not found">
+    **Problem:** Error message: "No credentials found"
+
+    **Solution:**
+    Credentials are stored in `~/.config/m87/`. If this directory is missing or corrupted:
+    ```bash
+    m87 login
+    ```
+
+    <Note>
+      On Linux, ensure `~/.config` directory has proper permissions (755 or 700).
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+## Runtime Issues
+
+<AccordionGroup>
+  <Accordion title="Device shows as 'pending' indefinitely">
+    **Problem:** Device registered but never shows as "online".
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check approval status">
+        List pending devices from your workstation:
+        ```bash
+        m87 devices list
+        ```
+      </Step>
+      <Step title="Approve the device">
+        ```bash
+        m87 devices approve <device-name-or-request-id>
+        ```
+      </Step>
+      <Step title="Check runtime logs">
+        On the device, check if the runtime is actually running:
+        ```bash
+        m87 runtime status
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Runtime won't start">
+    **Problem:** `m87 runtime run` fails or exits immediately.
+
+    **Diagnostic steps:**
+    ```bash
+    # Check if another instance is running
+    ps aux | grep m87
+
+    # Check system logs
+    journalctl -u m87-runtime -n 50
+
+    # Verify network connectivity
+    ping make87.com
+    ```
+
+    **Common causes:**
+    - Port conflict with another process
+    - Firewall blocking outbound connections
+    - Missing network connectivity
+    - Corrupted configuration file
+
+    **Solution:**
+    Try restarting with verbose logging:
+    ```bash
+    RUST_LOG=debug m87 runtime run
+    ```
+  </Accordion>
+
+  <Accordion title="Systemd service fails to start">
+    **Problem:** Runtime service doesn't start after running `m87 runtime enable --now`.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check service status">
+        ```bash
+        m87 runtime status
+        # Or use systemd directly
+        systemctl --user status m87-runtime
+        ```
+      </Step>
+      <Step title="Check logs">
+        ```bash
+        journalctl --user -u m87-runtime -n 100 --no-pager
+        ```
+      </Step>
+      <Step title="Verify binary location">
+        Ensure m87 binary is in your PATH:
+        ```bash
+        which m87
+        ```
+      </Step>
+      <Step title="Reinstall service">
+        ```bash
+        m87 runtime disable
+        m87 runtime enable --now
+        ```
+      </Step>
+    </Steps>
+
+    <Warning>
+      The runtime service runs as your user (not root). Ensure your user has necessary permissions.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Connection Issues
+
+<AccordionGroup>
+  <Accordion title="Device shows online but commands timeout">
+    **Problem:** Device appears in device list but `m87 <device> shell` or other commands timeout.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check device status">
+        ```bash
+        m87 <device> status
+        ```
+      </Step>
+      <Step title="Verify runtime is running">
+        Use another access method (physical access, serial, etc.) to check:
+        ```bash
+        m87 runtime status
+        ```
+      </Step>
+      <Step title="Check network stability">
+        Network interruptions can cause connection issues. Restart the runtime:
+        ```bash
+        m87 <device> exec -- 'm87 runtime restart'
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Shell session keeps disconnecting">
+    **Problem:** Shell sessions drop unexpectedly.
+
+    **Possible causes:**
+    - Unstable network connection on the device
+    - Device going to sleep or low-power mode
+    - High network latency
+
+    **Solutions:**
+    - Check device network stability
+    - Disable power management features that suspend network interfaces
+    - Use `m87 <device> exec` for non-interactive commands instead
+  </Accordion>
+
+  <Accordion title="Port forwarding not working">
+    **Problem:** `m87 <device> forward` command succeeds but port isn't accessible.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Verify service is listening">
+        On the device, check if the service is running:
+        ```bash
+        m87 <device> exec -- 'netstat -tulpn | grep <port>'
+        ```
+      </Step>
+      <Step title="Check bind address">
+        Ensure the service binds to `0.0.0.0` or `127.0.0.1`, not a specific IP.
+      </Step>
+      <Step title="Test local connectivity">
+        Try connecting locally on your workstation:
+        ```bash
+        curl http://localhost:<local-port>
+        ```
+      </Step>
+      <Step title="Check port format">
+        Verify correct syntax:
+        ```bash
+        m87 <device> forward 8080         # localhost:8080 → device:8080
+        m87 <device> forward 3000:8080    # localhost:3000 → device:8080
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+</AccordionGroup>
+
+## Platform-Specific Issues
+
+<AccordionGroup>
+  <Accordion title="macOS: Runtime not available">
+    **Problem:** Runtime commands fail on macOS.
+
+    **Explanation:**
+    <Note>
+      The m87 runtime (on-device daemon) only runs on Linux. macOS supports the CLI only.
+    </Note>
+
+    **Supported:**
+    - `m87 login`, `m87 logout`
+    - `m87 devices list`, `m87 devices approve`
+    - `m87 <device> shell`, `m87 <device> exec`
+    - All device management commands
+
+    **Not supported on macOS:**
+    - `m87 runtime run`
+    - `m87 runtime enable/start/stop`
+  </Accordion>
+
+  <Accordion title="Linux: Permission denied errors">
+    **Problem:** Permission errors when running runtime commands.
+
+    **Solutions:**
+    - Runtime service uses `sudo` for systemd operations automatically
+    - Binary should be executable: `chmod +x ~/.local/bin/m87`
+    - Config directory permissions: `chmod 700 ~/.config/m87`
+
+    <Warning>
+      Don't run the runtime itself as root. The service runs as your user account.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Build and Installation Issues
+
+<AccordionGroup>
+  <Accordion title="Installation script fails">
+    **Problem:** `curl -fsSL https://get.make87.com | sh` fails.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check network connectivity">
+        ```bash
+        curl -I https://get.make87.com
+        ```
+      </Step>
+      <Step title="Manual download">
+        Download from [releases page](https://github.com/make87/m87/releases) and install manually:
+        ```bash
+        wget https://github.com/make87/m87/releases/latest/download/m87-linux-amd64
+        chmod +x m87-linux-amd64
+        mv m87-linux-amd64 ~/.local/bin/m87
+        ```
+      </Step>
+      <Step title="Verify PATH">
+        Ensure `~/.local/bin` is in your PATH:
+        ```bash
+        echo $PATH | grep ".local/bin"
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Cargo build fails">
+    **Problem:** Building from source fails with compilation errors.
+
+    **Solutions:**
+    <Steps>
+      <Step title="Check Rust version">
+        m87 requires Rust 1.85+:
+        ```bash
+        rustc --version
+        rustup update
+        ```
+      </Step>
+      <Step title="Clean build">
+        ```bash
+        cargo clean
+        cargo build --release
+        ```
+      </Step>
+      <Step title="Check dependencies">
+        Ensure you have required system dependencies:
+        ```bash
+        # Debian/Ubuntu
+        sudo apt-get install build-essential pkg-config libssl-dev
+
+        # Fedora/RHEL
+        sudo dnf install gcc pkg-config openssl-devel
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+</AccordionGroup>
+
+## Docker-Specific Issues
+
+<AccordionGroup>
+  <Accordion title="Docker commands fail on device">
+    **Problem:** `m87 <device> docker ps` returns permission errors.
+
+    **Solutions:**
+    - Ensure Docker is installed on the device
+    - Add user to docker group:
+      ```bash
+      m87 <device> exec -- 'sudo usermod -aG docker $USER'
+      ```
+    - Restart runtime after group change:
+      ```bash
+      m87 <device> exec -- 'm87 runtime restart'
+      ```
+  </Accordion>
+
+  <Accordion title="Deployment fails to start containers">
+    **Problem:** `m87 <device> deploy` succeeds but containers don't start.
+
+    **Diagnostic steps:**
+    ```bash
+    # Check deployment status
+    m87 <device> deployment status --logs
+
+    # Check Docker logs
+    m87 <device> docker logs <container-name>
+
+    # Verify compose file syntax
+    m87 <device> deployment show --yaml
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting More Help
+
+If your issue isn't covered here:
+
+1. **Enable debug logging:**
+   ```bash
+   RUST_LOG=debug m87 <command>
+   ```
+
+2. **Check audit logs:**
+   ```bash
+   m87 <device> audit --details
+   ```
+
+3. **View runtime logs:**
+   ```bash
+   m87 <device> logs
+   ```
+
+4. **Report issues:**
+   File a bug report at [github.com/make87/m87/issues](https://github.com/make87/m87/issues)
+
+<Note>
+  When reporting issues, include:
+  - m87 version (`m87 --version`)
+  - Operating system and architecture
+  - Full error message
+  - Debug logs (with sensitive data redacted)
+</Note>

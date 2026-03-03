@@ -1,80 +1,227 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get up and running with m87 in 5 minutes
 ---
 
-## Get started in three steps
+Get connected to your first edge device in just a few minutes. This guide walks you through installing m87, setting up a device, and running your first commands.
 
-Get your documentation site running locally and make your first customization.
+<Info>
+  **Prerequisites:** m87 installed on your developer machine ([installation guide](/installation))
+</Info>
 
-### Step 1: Set up your local environment
+## Overview
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+You'll complete four steps:
+
+1. Authenticate on your developer machine
+2. Start the runtime on an edge device
+3. Approve the device registration
+4. Start using the device
+
+<Steps>
+  <Step title="Authenticate on your developer machine">
+    Login to create your account. This opens your browser for OAuth authentication:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    m87 login
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    After successful authentication, your credentials are stored locally in `~/.config/m87/`.
+  </Step>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+  <Step title="Start the runtime on your edge device">
+    On the edge device (e.g., Raspberry Pi, NVIDIA Jetson, server), install m87 and start the runtime:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    # Install m87 on the device
+    curl -fsSL https://get.make87.com | sh
+    
+    # Start the runtime
+    m87 runtime run --email you@example.com
+    ```
+    
+    This registers the device and prints a request ID:
+    
+    ```
+    Device registration pending approval.
+    Request ID: req_abc123xyz
+    Waiting for approval...
+    ```
+    
+    The runtime waits for approval before connecting.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Approve the device">
+    Back on your developer machine, approve the pending device:
+    
+    ```bash
+    m87 devices approve req_abc123xyz
+    ```
+    
+    Or approve via the web UI at [make87.com/devices](https://make87.com/devices).
+    
+    Once approved, the runtime on the edge device automatically connects and starts accepting commands.
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Start using your device">
+    List your devices:
+    
+    ```bash
+    m87 devices list
+    ```
+    
+    You'll see output like:
+    
+    ```
+    NAME              STATUS    LAST SEEN
+    my-jetson-01      online    1m ago
+    ```
+    
+    Now you can interact with your device!
+  </Step>
+</Steps>
 
-### Step 3: Go live
+## Try these commands
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Once your device is connected, try these common operations:
 
-## Next steps
+### Open a shell
 
-Now that you have your docs running, explore these key features:
+Get an interactive shell on the remote device:
+
+```bash
+m87 my-jetson-01 shell
+```
+
+Type `exit` or press `Ctrl+D` to close the shell.
+
+### Execute a command
+
+Run a single command:
+
+```bash
+m87 my-jetson-01 exec -- uname -a
+```
+
+### Forward a port
+
+Forward port 8080 from the remote device to your local machine:
+
+```bash
+m87 my-jetson-01 forward 8080
+```
+
+Now access `http://localhost:8080` to reach the service running on the device.
+
+### Check Docker containers
+
+List running containers:
+
+```bash
+m87 my-jetson-01 docker ps
+```
+
+### Copy files
+
+Copy a file from your local machine to the device:
+
+```bash
+m87 cp ./myapp my-jetson-01:/home/user/myapp
+```
+
+Or copy from the device to your local machine:
+
+```bash
+m87 cp my-jetson-01:/var/log/app.log ./app.log
+```
+
+### Sync directories
+
+Sync a local directory to the device (rsync-style):
+
+```bash
+m87 sync ./src my-jetson-01:/app/src
+```
+
+Add `--watch` to continuously sync on file changes:
+
+```bash
+m87 sync --watch ./src my-jetson-01:/app/src
+```
+
+## Set up runtime as a service
+
+To keep the runtime running persistently on your edge device, set it up as a systemd service:
+
+```bash
+# On the edge device
+m87 runtime start
+```
+
+This enables the runtime to start automatically on boot.
+
+<Info>
+  The runtime service runs as your user (not root) and automatically restarts on failure.
+  
+  Use `m87 runtime status` to check the service status or `m87 runtime stop` to stop it.
+</Info>
+
+## What's next?
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Port forwarding" icon="arrow-right-arrow-left" href="/commands/port-forwarding">
+    Forward ports, sockets, and serial devices
+  </Card>
+  
+  <Card title="File transfer" icon="files" href="/commands/file-transfer">
+    Copy and sync files with remote devices
+  </Card>
+  
+  <Card title="Deployments" icon="rocket" href="/commands/deployments">
+    Deploy containerized applications
+  </Card>
+  
+  <Card title="SSH setup" icon="terminal" href="/guides/ssh-setup">
+    Use standard SSH tools with m87
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+### Device not appearing after approval
+
+Wait a few seconds for the connection to establish. Check the runtime logs on the device:
+
+```bash
+# On the device
+m87 runtime status
+```
+
+### Authentication issues
+
+Re-authenticate if your session expires:
+
+```bash
+m87 logout
+m87 login
+```
+
+### Can't connect to device
+
+Ensure the runtime is running on the device:
+
+```bash
+# On the device
+m87 runtime status
+```
+
+If stopped, start it:
+
+```bash
+# On the device
+m87 runtime start
+```
+
+<Card title="Need help?" icon="question" href="https://github.com/make87/m87/issues">
+  Report issues or ask questions on GitHub
+</Card>

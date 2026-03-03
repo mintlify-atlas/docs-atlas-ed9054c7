@@ -1,0 +1,265 @@
+---
+title: Device Access Commands
+description: Access and interact with remote devices using shell, exec, status, and audit commands
+---
+
+## Overview
+
+The m87 CLI provides several commands for accessing and monitoring remote devices. These commands allow you to open interactive shells, execute commands remotely, check device status, and audit device access logs.
+
+## Shell Command
+
+Open a persistent interactive shell session on a remote device.
+
+### Syntax
+
+```bash
+m87 <device> shell
+```
+
+### Description
+
+The `shell` command provides a full interactive shell with PTY support, similar to SSH. It opens a persistent bash session on the remote device with full terminal capabilities.
+
+### Features
+
+- **Full PTY support** - Colors, cursor control, and terminal formatting
+- **TUI applications** - Works with vim, htop, less, nano, and other terminal UI apps
+- **Default shell** - Uses the user's default shell defined in `$SHELL`
+- **Easy exit** - Press `Ctrl+D` to exit the shell session
+
+### Examples
+
+<CodeGroup>
+```bash Connect to Raspberry Pi
+m87 rpi shell
+
+# You're now in a remote shell
+pi@raspberrypi:~ $ ls -la
+pi@raspberrypi:~ $ htop
+pi@raspberrypi:~ $ vim config.yaml
+pi@raspberrypi:~ $ exit
+```
+
+```bash Interactive Administration
+m87 edge-device shell
+# Explore files, install packages, configure services interactively
+```
+</CodeGroup>
+
+<Note>
+For scripting and automation, use `exec` instead of `shell`. The `shell` command is designed for interactive work only.
+</Note>
+
+### Shell vs Exec Comparison
+
+| Feature | `shell` | `exec` |
+|---------|---------|--------|
+| Persistent session | ✓ Yes | ✗ No |
+| Multiple commands | ✓ Yes | Single command |
+| Interactive apps | ✓ Always | With `-it` flags |
+| Scripting | ✗ No | ✓ Yes |
+
+---
+
+## Exec Command
+
+Execute commands on remote devices with optional stdin forwarding and TTY support.
+
+### Syntax
+
+```bash
+m87 <device> exec [OPTIONS] -- <COMMAND>
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-i, --stdin` | Keep stdin open for responding to prompts |
+| `-t, --tty` | Allocate a pseudo-TTY for TUI applications |
+
+### Execution Modes
+
+| Flags | Mode | Use Case |
+|-------|------|----------|
+| (none) | Output only | Simple commands, scripts |
+| `-i` | Stdin forwarding | Simple prompts (Y/n), piped input |
+| `-t` | TTY read-only | Colored output, watch mode |
+| `-it` | Full TTY | sudo, TUI apps (vim, htop, less) |
+
+### Examples
+
+<CodeGroup>
+```bash System Administration
+# Check disk usage
+m87 rpi exec -- df -h
+
+# Update packages (needs TTY for sudo password)
+m87 rpi exec -it -- 'sudo apt update && sudo apt upgrade'
+
+# View system logs
+m87 rpi exec -- journalctl -n 100
+```
+
+```bash Docker Management
+# List containers
+m87 rpi exec -- docker ps -a
+
+# View container logs
+m87 rpi exec -- docker logs myapp
+
+# Stop all containers
+m87 rpi exec -- 'docker stop $(docker ps -q)'
+```
+
+```bash Interactive Applications
+# Edit a file with vim
+m87 rpi exec -it -- vim /etc/hosts
+
+# Monitor with htop
+m87 rpi exec -it -- htop
+
+# Browse files with less
+m87 rpi exec -it -- less /var/log/syslog
+```
+
+```bash Chained Commands
+# Multiple commands with &&
+m87 rpi exec -- 'cd /app && git pull && npm install'
+
+# Pipeline
+m87 rpi exec -- 'ps aux | grep nginx'
+```
+</CodeGroup>
+
+### Shell Quoting
+
+<Warning>
+Commands are interpreted by your local shell first. Use single quotes to send commands literally to the remote device.
+</Warning>
+
+```bash
+# ❌ Local shell expands $(...)
+m87 rpi exec -- docker kill $(docker ps -q)  # Runs docker ps -q locally!
+
+# ✓ Single quotes send literally to remote
+m87 rpi exec -- 'docker kill $(docker ps -q)'  # Expands on remote
+```
+
+### Ctrl+C Behavior
+
+| Mode | Ctrl+C Effect |
+|------|---------------|
+| No flags / `-i` | Terminates connection, exits with code 130 |
+| `-t` | No effect (stdin not connected) |
+| `-it` | Sent to remote app (e.g., cancel in vim) |
+
+<Note>
+**TTY flag behavior:** The `-t` flag without `-i` allocates a TTY for output formatting but does not connect stdin. This means keyboard input (including Ctrl+C) has no effect. Use `-t` alone for commands that need colored/formatted output but no interaction.
+</Note>
+
+### Process Cleanup
+
+When the connection closes (Ctrl+C, network drop, etc.), the remote process is automatically terminated. No orphaned processes are left on the device.
+
+---
+
+## Status Command
+
+Check the status of a remote device including health, crashes, and incidents.
+
+### Syntax
+
+```bash
+m87 <device> status
+```
+
+### Description
+
+Displays comprehensive status information about the device, including:
+- Connection status (online/offline)
+- System health metrics
+- Recent crashes or errors
+- Active incidents
+- Runtime information
+
+### Example
+
+```bash
+m87 rpi-garage status
+```
+
+<Tip>
+Use `m87 devices list` to see the status of all devices at once.
+</Tip>
+
+---
+
+## Audit Command
+
+View audit logs showing who interacted with the device and when.
+
+### Syntax
+
+```bash
+m87 <device> audit [OPTIONS]
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--since <DATE>` | - | Filter logs from this RFC 3339 date (e.g., 2026-01-31 or 2026-01-31T13:00:00) |
+| `--until <DATE>` | - | Filter logs up to this RFC 3339 date |
+| `--max <NUM>` | 100 | Maximum number of logs to return |
+| `--details` | false | Show detailed information for each audit entry |
+
+### Examples
+
+<CodeGroup>
+```bash Basic Audit Log
+# View recent audit logs
+m87 rpi audit
+```
+
+```bash Detailed Audit Log
+# View detailed audit information
+m87 rpi audit --details
+```
+
+```bash Time-based Filtering
+# View audit logs from the last week
+m87 rpi audit --since 2026-02-24
+
+# View logs for a specific date range
+m87 rpi audit --since 2026-02-01 --until 2026-02-28
+```
+
+```bash Limit Results
+# Get last 50 audit entries with details
+m87 rpi audit --max 50 --details
+```
+</CodeGroup>
+
+### Audit Log Information
+
+Audit logs capture:
+- User access events (shell, exec, etc.)
+- Command executions
+- File transfers
+- Port forwarding sessions
+- Deployment operations
+- Timestamps and user identifiers
+
+<Note>
+Audit logs help with compliance, security monitoring, and troubleshooting device access issues.
+</Note>
+
+---
+
+## Related Commands
+
+- [File Transfer](/commands/file-transfer) - Copy and sync files with devices
+- [Port Forwarding](/commands/port-forwarding) - Forward ports from remote devices
+- [Docker Integration](/commands/docker-integration) - Manage Docker containers remotely

@@ -1,0 +1,523 @@
+---
+title: 'Building from Source'
+description: 'Build m87 CLI and runtime from source code'
+---
+
+Building m87 from source gives you the latest development features and allows you to customize the build for your specific needs.
+
+## Prerequisites
+
+Before building m87, ensure you have the required tools installed.
+
+### Required Tools
+
+<Steps>
+  <Step title="Rust 1.85 or newer">
+    m87 requires Rust 1.85 or later. Install or update Rust using rustup:
+
+    ```bash
+    # Install rustup (if not already installed)
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+    # Update to latest stable
+    rustup update stable
+
+    # Verify version
+    rustc --version
+    ```
+
+    Expected output: `rustc 1.85.0` or higher.
+  </Step>
+
+  <Step title="Git">
+    Git is required to clone the repository:
+
+    ```bash
+    # Verify git is installed
+    git --version
+
+    # Install if needed (Debian/Ubuntu)
+    sudo apt-get install git
+
+    # Install if needed (macOS)
+    brew install git
+    ```
+  </Step>
+
+  <Step title="System Dependencies">
+    Install system dependencies required for compilation:
+
+    **Debian/Ubuntu:**
+    ```bash
+    sudo apt-get update
+    sudo apt-get install build-essential pkg-config libssl-dev
+    ```
+
+    **Fedora/RHEL:**
+    ```bash
+    sudo dnf install gcc pkg-config openssl-devel
+    ```
+
+    **macOS:**
+    ```bash
+    # Xcode Command Line Tools
+    xcode-select --install
+    ```
+  </Step>
+</Steps>
+
+## Quick Build
+
+For most users, the standard build process is:
+
+```bash
+git clone https://github.com/make87/m87.git
+cd m87
+cargo build --release
+```
+
+The compiled binary will be at `target/release/m87`.
+
+## Detailed Build Instructions
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the m87 repository from GitHub:
+
+    ```bash
+    git clone https://github.com/make87/m87.git
+    cd m87
+    ```
+
+    To build a specific version:
+    ```bash
+    git clone https://github.com/make87/m87.git
+    cd m87
+    git checkout v0.x.x  # Replace with desired version
+    ```
+  </Step>
+
+  <Step title="Build the project">
+    Build the release version:
+
+    ```bash
+    cargo build --release
+    ```
+
+    This compiles m87 with full optimizations. The build process may take several minutes.
+
+    <Note>
+      The `--release` flag enables optimizations and produces a smaller, faster binary. Development builds (without `--release`) are faster to compile but slower to run.
+    </Note>
+  </Step>
+
+  <Step title="Locate the binary">
+    After compilation, the binary is located at:
+
+    ```bash
+    ls -lh target/release/m87
+    ```
+  </Step>
+
+  <Step title="Install the binary">
+    Copy the binary to a directory in your PATH:
+
+    ```bash
+    # Copy to user bin directory
+    cp target/release/m87 ~/.local/bin/
+
+    # Or copy to system bin directory (requires sudo)
+    sudo cp target/release/m87 /usr/local/bin/
+
+    # Verify installation
+    m87 --version
+    ```
+
+    <Warning>
+      Ensure `~/.local/bin` is in your PATH. Add to your shell profile if needed:
+      ```bash
+      export PATH="$HOME/.local/bin:$PATH"
+      ```
+    </Warning>
+  </Step>
+</Steps>
+
+## Build Options
+
+### Building Specific Components
+
+The m87 workspace contains multiple packages. You can build specific components:
+
+**Build only the CLI:**
+```bash
+cargo build --release -p m87-client
+```
+
+**Build only shared libraries:**
+```bash
+cargo build --release -p m87-shared
+```
+
+**Build server components (AGPL license):**
+```bash
+cargo build --release -p m87-server
+```
+
+### Platform-Specific Builds
+
+Build configuration is automatically detected based on your operating system:
+
+- **Linux:** Full functionality (CLI + runtime)
+- **macOS:** CLI only (runtime not available)
+
+<Note>
+  The m87 runtime only runs on Linux. macOS builds include the CLI commands but exclude runtime functionality.
+</Note>
+
+### Development Build
+
+For faster compilation during development:
+
+```bash
+cargo build
+```
+
+Development builds:
+- Compile faster (~50% faster)
+- Include debug symbols
+- No optimizations (significantly slower at runtime)
+- Located at `target/debug/m87`
+
+<Warning>
+  Development builds are not suitable for production use due to reduced performance.
+</Warning>
+
+## Build Configuration
+
+The build is configured via `Cargo.toml` in the workspace root.
+
+### Release Profile Settings
+
+The release profile is optimized for performance and minimal binary size:
+
+```toml
+[profile.release]
+opt-level = 3              # Maximum optimization
+lto = "fat"                # Full link-time optimization
+codegen-units = 1          # Better optimization (slower compile)
+strip = true               # Strip debug symbols
+```
+
+These settings produce:
+- Smaller binary size (~40-60% reduction)
+- Better runtime performance
+- Longer compilation time
+- No debug symbols (use `strip = false` if needed)
+
+### Custom Build Profiles
+
+Create a custom profile for specific needs:
+
+```bash
+# Fast compile, some optimization
+cargo build --profile dev-opt
+```
+
+Add to `Cargo.toml`:
+```toml
+[profile.dev-opt]
+inherits = "dev"
+opt-level = 2
+```
+
+## Cross-Compilation
+
+Build for different architectures using cross-compilation.
+
+### Setup Cross-Compilation
+
+Install the target architecture:
+
+```bash
+# For ARM64 (aarch64)
+rustup target add aarch64-unknown-linux-gnu
+
+# For ARMv7 (32-bit ARM)
+rustup target add armv7-unknown-linux-gnueabihf
+
+# For x86_64 Linux (from macOS)
+rustup target add x86_64-unknown-linux-gnu
+```
+
+### Build for Target Architecture
+
+```bash
+# Build for ARM64
+cargo build --release --target aarch64-unknown-linux-gnu
+
+# Binary location
+ls target/aarch64-unknown-linux-gnu/release/m87
+```
+
+### Using cross for Easy Cross-Compilation
+
+For easier cross-compilation, use the `cross` tool:
+
+```bash
+# Install cross
+cargo install cross
+
+# Build for ARM64 using Docker
+cross build --release --target aarch64-unknown-linux-gnu
+
+# Build for ARMv7
+cross build --release --target armv7-unknown-linux-gnueabihf
+```
+
+<Note>
+  `cross` uses Docker to provide a complete cross-compilation environment, eliminating the need for target-specific system dependencies.
+</Note>
+
+## Building with Docker
+
+Build m87 inside a Docker container for a consistent environment.
+
+<Steps>
+  <Step title="Build the Docker image">
+    ```bash
+    git clone https://github.com/make87/m87.git
+    cd m87
+    docker build -f m87-client/Dockerfile -t m87 .
+    ```
+  </Step>
+
+  <Step title="Run m87 from the container">
+    ```bash
+    docker run -it --rm \
+      --user "$(id -u):$(id -g)" \
+      -v "$HOME/.config/m87:/.config/m87" \
+      -e HOME=/ \
+      m87 --version
+    ```
+  </Step>
+
+  <Step title="Create a shell alias">
+    Add to your `~/.bashrc` or `~/.zshrc`:
+
+    ```bash
+    alias m87='docker run -it --rm --user "$(id -u):$(id -g)" -v "$HOME/.config/m87:/.config/m87" -e HOME=/ m87'
+    ```
+
+    Now use m87 as usual:
+    ```bash
+    m87 login
+    m87 devices list
+    ```
+  </Step>
+</Steps>
+
+## Optimizing Build Times
+
+### Use Cargo Cache
+
+Cargo caches dependencies. Keep them updated:
+
+```bash
+cargo update
+```
+
+### Parallel Compilation
+
+Increase parallel jobs (default is number of CPU cores):
+
+```bash
+cargo build --release -j 8
+```
+
+### Use sccache
+
+Distributed compilation cache:
+
+```bash
+# Install sccache
+cargo install sccache
+
+# Configure
+export RUSTC_WRAPPER=sccache
+
+# Build
+cargo build --release
+
+# Check cache stats
+sccache --show-stats
+```
+
+### Incremental Compilation
+
+Enabled by default for dev builds, disabled for release. Enable for faster release builds:
+
+```toml
+[profile.release]
+incremental = true
+```
+
+<Warning>
+  Incremental compilation may produce slightly larger binaries.
+</Warning>
+
+## Verifying the Build
+
+<Steps>
+  <Step title="Check binary size">
+    ```bash
+    ls -lh target/release/m87
+    ```
+
+    Expected size: 10-30 MB depending on platform and optimization.
+  </Step>
+
+  <Step title="Run basic commands">
+    ```bash
+    ./target/release/m87 --version
+    ./target/release/m87 --help
+    ```
+  </Step>
+
+  <Step title="Test authentication">
+    ```bash
+    ./target/release/m87 login
+    ./target/release/m87 devices list
+    ```
+  </Step>
+
+  <Step title="Compare with official binary">
+    Compare behavior with the official release to ensure consistency.
+  </Step>
+</Steps>
+
+## Development Workflow
+
+For active development:
+
+```bash
+# Watch for changes and rebuild automatically
+cargo install cargo-watch
+cargo watch -x 'build --release'
+
+# Run tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Check for issues without building
+cargo check
+
+# Format code
+cargo fmt
+
+# Lint with clippy
+cargo clippy -- -D warnings
+```
+
+## Troubleshooting Build Issues
+
+<AccordionGroup>
+  <Accordion title="Rust version too old">
+    **Error:** `package requires rustc 1.85 or newer`
+
+    **Solution:**
+    ```bash
+    rustup update stable
+    rustc --version
+    ```
+  </Accordion>
+
+  <Accordion title="Missing system dependencies">
+    **Error:** `could not find native static library`
+
+    **Solution:**
+    Install required system libraries:
+
+    ```bash
+    # Debian/Ubuntu
+    sudo apt-get install build-essential pkg-config libssl-dev
+
+    # Fedora/RHEL
+    sudo dnf install gcc pkg-config openssl-devel
+
+    # macOS
+    xcode-select --install
+    ```
+  </Accordion>
+
+  <Accordion title="Linker errors">
+    **Error:** `linking with 'cc' failed`
+
+    **Solution:**
+    Ensure you have a C compiler installed:
+
+    ```bash
+    # Check compiler
+    cc --version
+    gcc --version
+
+    # Install if missing
+    sudo apt-get install build-essential  # Debian/Ubuntu
+    ```
+  </Accordion>
+
+  <Accordion title="Out of disk space">
+    **Error:** `No space left on device`
+
+    **Solution:**
+    Cargo builds can use significant disk space. Clean old builds:
+
+    ```bash
+    cargo clean
+    rm -rf ~/.cargo/registry/cache
+    ```
+  </Accordion>
+
+  <Accordion title="Slow compilation">
+    **Problem:** Build takes too long.
+
+    **Solutions:**
+    - Use development build instead: `cargo build` (no `--release`)
+    - Enable incremental compilation
+    - Use `sccache` for caching
+    - Increase parallel jobs: `cargo build -j 8`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+After building from source:
+
+1. **Install the binary:** Copy to `~/.local/bin` or `/usr/local/bin`
+2. **Set up development environment:** Run `m87 login` and connect a device
+3. **Contribute:** Submit improvements via GitHub pull requests
+
+## Contributing
+
+Contributions are welcome! Before submitting:
+
+```bash
+# Format code
+cargo fmt
+
+# Check for issues
+cargo clippy
+
+# Run tests
+cargo test
+
+# Build release binary
+cargo build --release
+```
+
+See the [Contributing Guide](https://github.com/make87/m87/blob/main/CONTRIBUTING.md) for more details.
+
+<Note>
+  The m87-client and m87-shared packages are licensed under Apache-2.0. The m87-server package is licensed under AGPL-3.0-or-later.
+</Note>

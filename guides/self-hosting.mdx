@@ -1,0 +1,506 @@
+---
+title: Self-Hosting m87 Server
+description: Deploy and configure your own m87 server for on-premise device management
+---
+
+The m87 server can be self-hosted for on-premise deployments, giving you complete control over your device management infrastructure.
+
+## Overview
+
+m87-server handles device registration, authentication, and tunnel relay. It connects m87 runtimes on edge devices to m87 CLI users. Self-hosting allows you to:
+
+- Keep all device data within your infrastructure
+- Customize authentication and access control
+- Meet compliance requirements
+- Control updates and maintenance windows
+
+## Requirements
+
+- **MongoDB**: Version 8 or later (for device and user data storage)
+- **Docker** (recommended): For containerized deployment
+- **TLS Certificate**: For production deployments (Let's Encrypt or custom)
+- **Public IP/Domain**: For device and client connectivity
+
+## Quick Start with Docker Compose
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/make87/m87
+    cd m87/m87-server
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    Create a `.env` file with your configuration:
+    
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit the `.env` file with your settings (see [Configuration](#configuration) below).
+  </Step>
+  
+  <Step title="Start the Server">
+    ```bash
+    docker compose up -d
+    ```
+    
+    This will start:
+    - m87-server (API and tunnel relay)
+    - MongoDB (database)
+    - Watchtower (optional auto-updates)
+  </Step>
+  
+  <Step title="Verify Deployment">
+    Check that services are running:
+    
+    ```bash
+    docker compose ps
+    docker compose logs -f m87-server
+    ```
+  </Step>
+</Steps>
+
+## Configuration
+
+The m87 server is configured via environment variables. Below are the key settings:
+
+### Core Database
+
+<ParamField path="MONGO_URI" type="string" required>
+  MongoDB connection string used by m87-server
+  
+  **Default**: `mongodb://mongo:27017`
+  
+  ```bash
+  MONGO_URI=mongodb://mongo:27017
+  ```
+</ParamField>
+
+<ParamField path="MONGO_DB" type="string" default="m87-server">
+  Logical database name used by m87-server
+  
+  ```bash
+  MONGO_DB=m87-server
+  ```
+</ParamField>
+
+<ParamField path="MONGO_INITDB_ROOT_USERNAME" type="string">
+  MongoDB root username (required for secured MongoDB setups)
+  
+  ```bash
+  MONGO_INITDB_ROOT_USERNAME=admin
+  ```
+</ParamField>
+
+<ParamField path="MONGO_INITDB_ROOT_PASSWORD" type="string">
+  MongoDB root password (required for secured MongoDB setups)
+  
+  ```bash
+  MONGO_INITDB_ROOT_PASSWORD=secure_password_here
+  ```
+</ParamField>
+
+### Authentication & OAuth
+
+<ParamField path="OAUTH_ISSUER" type="string" required>
+  OAuth/OIDC issuer URL used to validate access tokens
+  
+  **Default**: `https://auth.make87.com/`
+  
+  ```bash
+  OAUTH_ISSUER=https://auth.make87.com/
+  ```
+  
+  For custom auth, use your Auth0 tenant or OIDC provider.
+</ParamField>
+
+<ParamField path="OAUTH_AUDIENCE" type="string" required>
+  Expected OAuth audience for access tokens (must match the `aud` claim)
+  
+  **Default**: `https://auth.make87.com`
+  
+  ```bash
+  OAUTH_AUDIENCE=https://auth.make87.com
+  ```
+</ParamField>
+
+### Server Networking
+
+<ParamField path="PUBLIC_ADDRESS" type="string" required>
+  Public base address where this server is reachable
+  
+  **Default**: `localhost`
+  
+  ```bash
+  PUBLIC_ADDRESS=m87.example.com
+  ```
+  
+  Used to check SNI of incoming requests for device ID prefixes.
+</ParamField>
+
+<ParamField path="UNIFIED_PORT" type="string" default="8084">
+  Port for the unified public interface (runtime connections and tunnel traffic)
+  
+  ```bash
+  UNIFIED_PORT=8084
+  ```
+  
+  This should be mapped to port 443 for TLS.
+</ParamField>
+
+<ParamField path="REST_PORT" type="string" default="8085">
+  Port for the REST API
+  
+  ```bash
+  REST_PORT=8085
+  ```
+  
+  Used for WebTransport endpoint for the web app (typically mapped to 8080).
+</ParamField>
+
+### Admin & Security
+
+<ParamField path="ADMIN_KEY" type="string" required>
+  Static admin API key for privileged actions
+  
+  ```bash
+  ADMIN_KEY=your-secure-admin-key-here
+  ```
+  
+  Used for approving users, creating organizations, and bootstrapping admin access.
+  
+  <Warning>Change this from the default value in production!</Warning>
+</ParamField>
+
+<ParamField path="ADMIN_EMAILS" type="string">
+  Comma-separated list of email addresses that receive admin privileges
+  
+  ```bash
+  ADMIN_EMAILS=admin@example.com,ops@example.com
+  ```
+</ParamField>
+
+### User Management
+
+<ParamField path="USERS_NEED_APPROVAL" type="boolean" default="false">
+  Whether newly registered users require manual approval
+  
+  ```bash
+  USERS_NEED_APPROVAL=false
+  ```
+  
+  - `true`: User accounts start inactive until approved
+  - `false`: Users are active immediately
+</ParamField>
+
+<ParamField path="USER_AUTO_ACCEPT_DOMAINS" type="string">
+  Domains that are auto-approved on signup
+  
+  ```bash
+  USER_AUTO_ACCEPT_DOMAINS=make87.com,example.org
+  ```
+  
+  Comma-separated list (no spaces). If a user's email domain matches, approval is skipped.
+</ParamField>
+
+### Device Sharing
+
+<ParamField path="ALLOW_CROSS_ORG_DEVICE_SHARING" type="boolean" default="false">
+  Whether devices can be shared across different organizations
+  
+  ```bash
+  ALLOW_CROSS_ORG_DEVICE_SHARING=false
+  ```
+  
+  - `true`: Cross-org device sharing allowed
+  - `false`: Devices are restricted to their organization
+</ParamField>
+
+### Data Retention
+
+<ParamField path="AUDIT_RETENTION_DAYS" type="number" default="30">
+  Number of days audit log entries are retained
+  
+  ```bash
+  AUDIT_RETENTION_DAYS=30
+  ```
+  
+  Older entries are automatically deleted.
+</ParamField>
+
+<ParamField path="REPORT_RETENTION_DAYS" type="number" default="7">
+  Number of days deployment/report data is retained
+  
+  ```bash
+  REPORT_RETENTION_DAYS=7
+  ```
+  
+  Older reports are automatically deleted.
+</ParamField>
+
+### Other Settings
+
+<ParamField path="STAGING" type="number" default="1">
+  Whether the server runs in staging mode
+  
+  ```bash
+  STAGING=0
+  ```
+  
+  - `0`: Production behavior
+  - `1`: Staging mode with relaxed checks and verbose logging
+</ParamField>
+
+<ParamField path="RUST_LOG" type="string" default="info">
+  Logging level
+  
+  ```bash
+  RUST_LOG=info
+  ```
+  
+  Options: `error`, `warn`, `info`, `debug`, `trace`
+</ParamField>
+
+<ParamField path="CERTIFICATE_PATH" type="string" default="/data/m87/certs/">
+  Path for TLS certificates
+  
+  ```bash
+  CERTIFICATE_PATH=/data/m87/certs/
+  ```
+</ParamField>
+
+## Exposed Ports
+
+The docker-compose configuration exposes:
+
+- **443** → **8084** (TCP/UDP): Runtime connections and tunnel traffic (TLS)
+- **8080** → **8085** (UDP): REST API and WebTransport endpoint
+
+## Example Configuration
+
+Here's a complete example `.env` file for production:
+
+```bash
+# Database
+MONGO_URI=mongodb://admin:secure_password@mongo:27017/admin
+MONGO_DB=m87-server
+MONGO_INITDB_ROOT_USERNAME=admin
+MONGO_INITDB_ROOT_PASSWORD=secure_password
+
+# Auth (using make87 default auth)
+OAUTH_ISSUER=https://auth.make87.com/
+OAUTH_AUDIENCE=https://auth.make87.com
+
+# Networking
+PUBLIC_ADDRESS=m87.example.com
+UNIFIED_PORT=8084
+REST_PORT=8085
+
+# Security
+ADMIN_KEY=change-this-to-secure-random-string
+ADMIN_EMAILS=admin@example.com
+
+# User management
+USERS_NEED_APPROVAL=true
+USER_AUTO_ACCEPT_DOMAINS=example.com
+
+# Device sharing
+ALLOW_CROSS_ORG_DEVICE_SHARING=false
+
+# Retention
+AUDIT_RETENTION_DAYS=90
+REPORT_RETENTION_DAYS=14
+
+# Environment
+STAGING=0
+RUST_LOG=info
+```
+
+## Building from Source
+
+If you prefer to build the server binary yourself:
+
+<Steps>
+  <Step title="Install Rust">
+    Requires Rust 1.85 or later:
+    
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
+  </Step>
+  
+  <Step title="Clone and Build">
+    ```bash
+    git clone https://github.com/make87/m87
+    cd m87
+    cargo build --release -p m87-server
+    ```
+    
+    Binary will be at: `target/release/m87-server`
+  </Step>
+  
+  <Step title="Run with MongoDB">
+    Ensure MongoDB is running, then:
+    
+    ```bash
+    export MONGO_URI=mongodb://localhost:27017
+    export PUBLIC_ADDRESS=localhost
+    ./target/release/m87-server
+    ```
+  </Step>
+</Steps>
+
+## Using Prebuilt Docker Images
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/make87/m87-server:latest
+```
+
+Or specify a version:
+
+```bash
+docker pull ghcr.io/make87/m87-server:v1.2.3
+```
+
+## Auto-Updates with Watchtower
+
+The docker-compose file includes Watchtower for automatic updates:
+
+```bash
+# Enable auto-updates profile
+docker compose --profile auto-update up -d
+```
+
+Watchtower will:
+- Check for new images every 5 minutes
+- Automatically pull and restart with latest version
+- Only update containers with the `watchtower.enable` label
+
+## Production Deployment Checklist
+
+<Steps>
+  <Step title="Secure MongoDB">
+    - Set strong `MONGO_INITDB_ROOT_PASSWORD`
+    - Restrict MongoDB port access (only to m87-server)
+    - Enable MongoDB authentication
+  </Step>
+  
+  <Step title="Configure TLS">
+    - Obtain TLS certificate (Let's Encrypt recommended)
+    - Configure reverse proxy (nginx, Caddy) or mount certificates
+    - Ensure port 443 routes to `UNIFIED_PORT`
+  </Step>
+  
+  <Step title="Set Admin Credentials">
+    - Change `ADMIN_KEY` from default
+    - Configure `ADMIN_EMAILS`
+    - Set `USERS_NEED_APPROVAL` based on your requirements
+  </Step>
+  
+  <Step title="Configure Authentication">
+    If using custom OAuth:
+    - Set up OAuth provider (Auth0, Keycloak, etc.)
+    - Update `OAUTH_ISSUER` and `OAUTH_AUDIENCE`
+    - Ensure tokens include required claims
+  </Step>
+  
+  <Step title="Set Public Address">
+    - Update `PUBLIC_ADDRESS` to your domain
+    - Ensure DNS points to your server
+    - Verify firewall allows ports 443 and 8080
+  </Step>
+  
+  <Step title="Configure Monitoring">
+    - Set appropriate `RUST_LOG` level
+    - Set up log aggregation
+    - Monitor container health
+  </Step>
+  
+  <Step title="Backup Strategy">
+    - Configure MongoDB backups
+    - Backup certificate files
+    - Store `.env` configuration securely
+  </Step>
+</Steps>
+
+## Client Configuration
+
+After deploying your server, configure clients to use it:
+
+```bash
+# Set the server URL (if using custom server)
+export M87_SERVER_URL=https://m87.example.com
+
+# Login
+m87 login
+```
+
+Clients will need to authenticate against your OAuth provider.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Server not starting">
+    Check logs:
+    ```bash
+    docker compose logs -f m87-server
+    ```
+    
+    Common issues:
+    - MongoDB connection failed (check `MONGO_URI`)
+    - Invalid OAuth configuration
+    - Port already in use
+  </Accordion>
+  
+  <Accordion title="Devices can't connect">
+    Verify:
+    - `PUBLIC_ADDRESS` is correct and DNS resolves
+    - Port 443 is accessible from internet
+    - TLS certificate is valid
+    - Firewall allows incoming connections
+  </Accordion>
+  
+  <Accordion title="Authentication errors">
+    Check:
+    - `OAUTH_ISSUER` and `OAUTH_AUDIENCE` match your provider
+    - OAuth provider is reachable
+    - Tokens include required claims
+    - Admin key is correct
+  </Accordion>
+  
+  <Accordion title="Database connection issues">
+    - Verify MongoDB is running: `docker compose ps mongo`
+    - Check MongoDB logs: `docker compose logs mongo`
+    - Ensure credentials in `.env` match MongoDB config
+  </Accordion>
+</AccordionGroup>
+
+## Updating
+
+### Manual Update
+
+```bash
+# Pull latest image
+docker compose pull
+
+# Restart services
+docker compose up -d
+```
+
+### With Watchtower (Automatic)
+
+If running with the `auto-update` profile, Watchtower handles updates automatically.
+
+## License
+
+The m87 server is licensed under AGPL-3.0-or-later.
+
+## Support
+
+For issues and questions:
+- [GitHub Issues](https://github.com/make87/m87/issues)
+- [Documentation](https://docs.make87.com)

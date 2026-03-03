@@ -1,0 +1,113 @@
+---
+title: Introduction
+description: Secure, outbound-only access to physical devices with a native development experience
+---
+
+<Note>
+  **m87** is make87's command line and device runtime for connecting to, debugging, and deploying software to distributed hardware fleets — all over a single outbound connection and without VPNs or inbound firewall rules.
+</Note>
+
+## What is m87?
+
+m87 provides secure, outbound-only access to physical devices with a native-feeling development, debugging, and software deployment experience. It consists of two components:
+
+- **`m87` command** - The CLI you type in your terminal on your developer machine
+- **m87 runtime** - The on-device process that maintains the outbound connection and executes actions
+
+## What makes m87 different
+
+m87 isn't just remote access — it's designed so working with real devices feels like local development and deployment:
+
+<CardGroup cols={3}>
+  <Card title="Outbound-only access" icon="arrow-up-right-from-square">
+    Works behind NATs and firewalls without opening inbound ports or configuring VPNs
+  </Card>
+  <Card title="Native dev experience" icon="terminal">
+    Shell, port forwarding, logs, and live debugging feel like you're working locally
+  </Card>
+  <Card title="Deployment-ready" icon="rocket">
+    One command line that transitions from access to orchestrating software deployments across fleets
+  </Card>
+</CardGroup>
+
+If you've ever SSH'd into an embedded device only to run into network traps or scaling pain, m87 makes those workflows easy and repeatable.
+
+## Core capabilities
+
+### Development and debugging
+
+Use native OS tools and IDEs as if the device were local:
+
+```bash
+# Open an interactive shell
+m87 my-device shell
+
+# Forward a port for a debugging server
+m87 my-device forward 8080:localhost:3000
+
+# Run commands directly
+m87 my-device exec -- htop
+
+# Access Docker on the remote device
+m87 my-device docker ps
+```
+
+### Software deployment
+
+Deploy containers and services using familiar commands:
+
+```bash
+# Deploy a Docker Compose stack
+m87 my-device docker compose up -d
+
+# Register async deployments for offline devices
+m87 my-device deploy ./my-compose.yml
+
+# Check deployment status
+m87 my-device deployment status --logs
+```
+
+### File operations
+
+Transfer and sync files with SCP and rsync-style commands:
+
+```bash
+# Copy files to/from device
+m87 cp ./local-file my-device:/remote/path
+m87 cp my-device:/remote/file ./local-path
+
+# Sync directories with watch mode
+m87 sync --watch ./src my-device:/app/src
+```
+
+## Platform support
+
+<Info>
+  **Linux** (amd64, arm64) - Full functionality (CLI + runtime)
+  
+  **macOS** (amd64, arm64) - CLI only (use for managing remote devices)
+</Info>
+
+## Quick links
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Get m87 installed on your developer machine and edge devices
+  </Card>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Connect your first device in under 5 minutes
+  </Card>
+  <Card title="GitHub repository" icon="github" href="https://github.com/make87/m87">
+    View source code, open issues, and contribute
+  </Card>
+  <Card title="make87 platform" icon="globe" href="https://make87.com">
+    Learn more about the make87 platform
+  </Card>
+</CardGroup>
+
+## License
+
+The m87 project is open source:
+
+- **m87-client** and **m87-shared** - Apache-2.0
+- **m87-server** - AGPL-3.0-or-later
